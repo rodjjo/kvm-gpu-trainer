@@ -28,7 +28,7 @@ def load_machine_settings(machine_name):
 
 
 def get_machine_disk_filepath(machine_name):
-    disk_dir = VMS_DIR.joinpath(machine_name)
+    disk_dir = VMS_DIR.joinpath(f"{machine_name}-disks")
     if not os.path.exists(disk_dir):
         os.makedirs(disk_dir)
     return disk_dir.joinpath(f"{machine_name}.qcow")
@@ -39,11 +39,12 @@ def create_disk(machine_name):
     disk_filepath = get_machine_disk_filepath(machine_name)
     if os.path.exists(disk_filepath):
         raise CommandError(f'The machine disk already exists at {disk_filepath}')
-
-    if settings["disk-size"] < 5000:
+    disk_size = settings["machine"]["disk-size"]
+    if disk_size < 5000:
         raise CommandError('The machine configuration has a very small disk. Operation Aborted')
 
-    create_qcow_disk(disk_filepath, settings["disk-size"])
+    for line in create_qcow_disk(disk_filepath, disk_size):
+        click.echo(line)
 
 
 def update_machine_setting(machine_name, setting_name, value):
@@ -163,5 +164,6 @@ def machine_set_gpus(name):
 
 
 @cli.command(help='Create the virtual machine disk (qcow)')
+@click.option("--name", required=True, help="The name of the virtual machine")
 def machine_create_disk(name):
     create_disk(name)

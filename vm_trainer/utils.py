@@ -109,25 +109,23 @@ def gpus_from_iommu_devices():
     return gpus
 
 
+def check_tool(executable_name):
+    try:
+        subprocess.check_call([executable_name, "--version"])
+    except FileNotFoundError:
+        return f"This device does not have the tool {executable_name}"
+
+
 def check_compatible_device():
-    try:
-        subprocess.check_call(["dmesg", "--version"])
-    except FileNotFoundError:
-        return "This device does not have the tool dmesg"
-
-    try:
-        subprocess.check_call(["lspci", "--version"])
-    except FileNotFoundError:
-        return "This device does not have the tool lspci"
-
-    try:
-        subprocess.check_call(['qemu-system-x86_64', '--version'])
-    except FileNotFoundError:
-        return "This device does not have the tool qemu-system-x86_64"
-
+    required_tools = ["dmesg", "lspci", "qemu-system-x86_64", "qemu-img"]
+    for exe_name in required_tools:
+        check_tool(exe_name)
     if os.path.exists("/sys/kernel/iommu_groups/"):
-        return "IOMMU Groups to be mapped into /sys/kernel/iommu_groups/"
+        return "Expected IOMMU Groups to be mapped into /sys/kernel/iommu_groups/"
 
 
 def create_qcow_disk(disk_filepath, disk_size):
-    raise NotImplementedError("Not Implemented yet")
+    for line in run_read_output([
+            "qemu-img", "create", "-f", "qcow2", str(disk_filepath), f"{disk_size}M"
+    ]):
+        yield line
