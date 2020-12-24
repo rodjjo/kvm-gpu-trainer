@@ -93,6 +93,8 @@ def machine_create(name: str, cpus: int, memory: int, disk_size: int):
     with open(filepath, "w") as fp:
         yaml.dump(machine, fp, Dumper=Dumper)
 
+    create_disk(name)
+
 
 @cli.command(help="Change the number of cpu cores used by an existing machine")
 @click.option("--name", required=True, help="The name of the virtual machine")
