@@ -120,5 +120,14 @@ def check_compatible_device():
     except FileNotFoundError:
         return "This device does not have the tool lspci"
 
+    try:
+        subprocess.check_call(['qemu-system-x86_64', '--version'])
+    except FileNotFoundError:
+        return "This device does not have the tool qemu-system-x86_64"
+
     if os.path.exists("/sys/kernel/iommu_groups/"):
         return "IOMMU Groups to be mapped into /sys/kernel/iommu_groups/"
+
+
+def create_qcow_disk(disk_filepath, disk_size):
+    raise NotImplementedError("Not Implemented yet")
