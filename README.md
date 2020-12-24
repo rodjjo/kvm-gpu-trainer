@@ -3,7 +3,7 @@
 **GPU Passthroung for Gaming or Train models inside an virtual machine with GPU passthrough  (WIP)**
 
 This project intend to create, modify and run virtual machines with GPU passthrough.  
-Based in the tutorial: [PCI_passthrough_via_OVMF] (https://wiki.archlinux.org/index.php/PCI_passthrough_via_OVMF)
+Based in the tutorial: [PCI_passthrough_via_OVMF](https://wiki.archlinux.org/index.php/PCI_passthrough_via_OVMF)
 
 ## Attention
 
