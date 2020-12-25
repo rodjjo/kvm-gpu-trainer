@@ -1,6 +1,6 @@
 import click
 from .clickgroup import cli
-from .utils import get_IOMMU_information, get_iommu_devices, gpus_from_iommu_devices
+from ..utils import get_IOMMU_information, get_iommu_devices, gpus_from_iommu_devices
 
 
 @cli.command(help="Show IOMMU information")
@@ -19,4 +19,4 @@ def show_iommu_devices():
 def show_gpus():
     for gpu in gpus_from_iommu_devices():
         click.echo(f"GPU: {gpu.video_vendor}")
-        click.echo(f"Addresses, video: [{gpu.video_address[0]}:{gpu.video_address[1]}] audio: [{gpu.audio_address[0]}:{gpu.audio_address[1]}]")
+        click.echo(f"Addresses, video: [0000:{gpu.video_address}] audio: [0000:{gpu.audio_address}]")

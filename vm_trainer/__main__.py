@@ -2,9 +2,8 @@ import sys
 
 import click
 
-from . import device_info  # noqa
-from . import machines  # noqa
-from .clickgroup import cli
+from .management import device_info, machines, network  # noqa
+from .management.clickgroup import cli
 from .exceptions import CommandError
 
 
