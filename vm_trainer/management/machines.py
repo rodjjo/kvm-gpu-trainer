@@ -1,7 +1,7 @@
 import os
 import random
-import shutil
 import subprocess
+from typing import Union
 from uuid import uuid4
 
 import click
@@ -36,14 +36,8 @@ def get_machine_settings_filepath(machine_name):
     return filepath
 
 
-def get_nvram_filepath(machine_name):
-    nvram_dir = os.path.join(VMS_DIR, "nvram")
-    if not os.path.exists(nvram_dir):
-        os.makedirs(nvram_dir)
-    filepath = os.path.join(nvram_dir, f"nvram-{machine_name}-vars.fd")
-    if not os.path.exists(filepath):
-        shutil.copy("/usr/share/edk2-ovmf/x64/OVMF_CODE.fd", filepath)
-    return filepath
+def get_machine_domainkey_path(machine_name):
+    return os.path.join(VMS_DIR, f"{machine_name}-key.aes")
 
 
 def load_machine_settings(machine_name):
@@ -106,10 +100,23 @@ def get_machine_run_command_line(machine_name, iso_file=None):
             "-device", f"vfio-pci,host={gpu['audio']['address']},id=hostdev1,bus={pci_bus[index][1]},addr=0x0",
         ]
 
-    # shared_memories = []
-    # if os.path.exists("/dev/shm/scream-ivshmem"):
-    #    shared_memories = ["-object", "memory-backend-file,id=shmmem-shmem0,mem-path=/dev/shm/scream-ivshmem,size=2097152,share=yes"
-    #                       "-device", "ivshmem-plain,id=shmem0,memdev=shmmem-shmem0,bus=pci.8,addr=0x2"]
+    # ivshmem-server -p /var/run/ivshmem-server.pid  -S /tmp/ivshmem_socket  -M ivshmem -m /dev/shm -l 1M -n 2
+    shared_memories = []
+    if os.path.exists("/dev/shm/scream-ivshmem"):
+        shared_memories = ["-object", "memory-backend-file,id=shmmem-shmem0,mem-path=/dev/shm/scream-ivshmem,size=2097152,share=yes",
+                           "-device", "ivshmem-plain,id=shmem0,memdev=shmmem-shmem0,bus=pci.8,addr=0x2"]
+
+    if settings["machine"].get("custom-disk"):
+        hda_disk_path = settings["machine"]["custom-disk"]
+    else:
+        hda_disk_path = get_machine_disk_filepath(machine_name)
+
+    domainkey = []
+    keypath = get_machine_domainkey_path(machine_name)
+    if os.path.exists(keypath):
+        domainkey = [
+            "-object", f"secret,id=masterKey0,format=raw,file={keypath}"
+        ]
 
     dvd_driver = []
     if iso_file and os.path.exists(iso_file):
@@ -122,15 +129,9 @@ def get_machine_run_command_line(machine_name, iso_file=None):
     command_line = [
         "sudo",
         "qemu-system-x86_64",
-        "-name", f"guest={machine_name},debug-threads=on",
-        # "-object", "secret,id=masterKey0,format=raw,file=/var/lib/libvirt/qemu/domain-1-win10-2/master-key.aes"
-        # "-blockdev", '{"driver":"file","filename":"/usr/share/edk2-ovmf/x64/OVMF_CODE.fd","node-name":"libvirt-pflash0-storage","auto-read-only":true,"discard":"unmap"}',
-        # "-blockdev", '{"node-name":"libvirt-pflash0-format","read-only":true,"driver":"raw","file":"libvirt-pflash0-storage"}',
-        # "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-pflash1-storage","auto-read-only":true,"discard":"unmap"}' % get_nvram_filepath(machine_name),
-        # "-blockdev", '{"node-name":"libvirt-pflash1-format","read-only":false,"driver":"raw","file":"libvirt-pflash1-storage"}',
+        "-name", f"guest={machine_name},debug-threads=on"] + domainkey + [
         "-machine", 'pc-q35-5.1,accel=kvm,usb=off,vmport=off,dump-guest-core=off,kernel_irqchip=on',
         "-bios", "/usr/share/edk2-ovmf/x64/OVMF_CODE.fd",
-        # "-machine", 'pc-q35-5.1,accel=kvm,usb=off,vmport=off,dump-guest-core=off,kernel_irqchip=on,pflash0=libvirt-pflash0-format,pflash1=libvirt-pflash1-format',
         "-cpu", "host,migratable=on,hv-time,hv-relaxed,hv-vapic,hv-spinlocks=0x4000,hv-vpindex,hv-runtime,hv-synic,hv-stimer,hv-reset,hv-vendor-id=441863197303,hv-frequencies,hv-reenlightenment,hv-tlbflush,kvm=off",
         "-m", str((settings["machine"]["memory"] // 4) * 4),
         "-overcommit",
@@ -139,15 +140,11 @@ def get_machine_run_command_line(machine_name, iso_file=None):
         "-uuid", settings["machine"]["uuid"],
         "-no-user-config",
         "-nodefaults",
-        # "-chardev", "socket,id=charmonitor,fd=30,server,nowait",
-        # "-mon", "chardev=charmonitor,id=monitor,mode=control",
         "-rtc", "base=localtime,driftfix=slew",
         "-global", "kvm-pit.lost_tick_policy=delay",
         "-no-hpet",
-        # "-no-shutdown",
         "-global", "ICH9-LPC.disable_s3=1",
         "-global", "ICH9-LPC.disable_s4=1",
-        # "-boot", "strict=on",
         # -serial mon:stdio -append 'console=ttyS0'   # for serial redirection
         "-device", "pcie-root-port,port=0x10,chassis=1,id=pci.1,bus=pcie.0,multifunction=on,addr=0x2",
         "-device", "pcie-root-port,port=0x11,chassis=2,id=pci.2,bus=pcie.0,addr=0x2.0x1",
@@ -158,35 +155,15 @@ def get_machine_run_command_line(machine_name, iso_file=None):
         "-device", "pcie-root-port,port=0x16,chassis=7,id=pci.7,bus=pcie.0,addr=0x2.0x6",
         "-device", "pcie-root-port,port=0x17,chassis=9,id=pci.9,bus=pcie.0,addr=0x2.0x7",
         "-device", "pcie-pci-bridge,id=pci.8,bus=pci.1,addr=0x0",
-        # "-hda", get_machine_disk_filepath(machine_name),
-        "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap"}' % get_machine_disk_filepath(machine_name),
+        "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap"}' % hda_disk_path,
         "-blockdev", '{"node-name":"libvirt-3-format","read-only":false,"driver":"qcow2","file":"libvirt-3-storage","backing":null}',
         "-device", "ide-hd,bus=ide.0,drive=libvirt-3-format,id=sata0-0-0,bootindex=1",
-    ] + gpus + dvd_driver + [
-        # -blockdev {"driver":"host_device","filename":"/dev/sda","node-name":"libvirt-1-storage","cache":{"direct":true,"no-flush":false},"auto-read-only":true,"discard":"unmap"}
-        # "-blockdev", '{"node-name":"libvirt-1-format","read-only":false,"cache":{"direct":true,"no-flush":false},"driver":"raw","file":"libvirt-1-storage"}',
-        # "-device", "virtio-blk-pci,bus=pci.10,addr=0x0,drive=libvirt-1-format,id=virtio-disk2,write-cache=on",
+    ] + gpus + dvd_driver + shared_memories + [
         "-netdev", f"tap,id=hostnet0,ifname={TapNetwork.TAP_INTERFACE_NAME},script=no,downscript=no",  # tap,fd=32,id=hostnet0
         "-device", f"e1000e,netdev=hostnet0,id=net0,mac={settings['machine']['mac-address']},bus=pci.7,addr=0x0",
-        # "-net", f"nic,macaddr={settings['machine']['mac-address']}",
-        # "-chardev", "pty,id=charserial0",
-        # "-device", "isa-serial,chardev=charserial0,id=serial0",
-        # "-chardev", "spicevmc,id=charchannel0,name=vdagent",
-        # "-device", "virtserialport,bus=virtio-serial0.0,nr=1,chardev=charchannel0,id=channel0,name=com.redhat.spice.0",
-        # "-device", "usb-tablet,id=input0,bus=usb.0,port=1",
-        # "-device", "virtio-keyboard-pci,id=input1,bus=pci.9,addr=0x0",
-        # "-device", "usb-mouse,id=input2,bus=usb.0,port=4",
-        # "-spice", "port=5900,addr=127.0.0.1,disable-ticketing,image-compression=off,seamless-migration=on",
         # "-device", "qxl-vga,id=video0,ram_size=67108864,vram_size=67108864,vram64_size_mb=0,vgamem_mb=16,max_outputs=1,bus=pcie.0,addr=0x7",
         "-nographic",
-        # "-display", "sdl",
-        # "-display", "gtk,gl=on",
-        # "-chardev", "spicevmc,id=charredir0,name=usbredir",
-        # "-device", "usb-redir,chardev=charredir0,id=redir0,bus=usb.0,port=2",
-        # "-chardev", "spicevmc,id=charredir1,name=usbredir",
-        # "-device", "usb-redir,chardev=charredir1,id=redir1,bus=usb.0,port=3"
-        # "-device", "virtio-balloon-pci,id=balloon0,bus=pci.4,addr=0x0",
-        # "-sandbox", "on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny"] + shared_memories + [
+        "-sandbox", "on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny",
         "-msg", "timestamp=on",
         "-object", "input-linux,id=mouse1,evdev=/dev/input/by-id/usb-HP_HP_Wireless_Keyboard_Combo_200-event-mouse",  # share host keyboard
         "-object", "input-linux,id=kbd1,evdev=/dev/input/by-id/usb-SIGMACHIP_USB_Keyboard-event-kbd,grab_all=on,repeat=on",  # share host mouse
@@ -206,9 +183,10 @@ def setup_machine(machine_name, iso_file):
 @cli.command(help="Create new machine settings")
 @click.option("--name", required=True, help="The name of the virtual machine")
 @click.option("--cpus", default="-1", type=int, help="Number of cpu cores (default = -1 all cores)")
-@click.option("--disk-size", required=True, type=int, help="Disk space in MB")
+@click.option("--disk-size", required=False, type=int, help="Disk space in MB")
+@click.option("--existing-disk", required=False, type=str, help="Use an existing disk")
 @click.option("--memory", required=True, type=int, help="Amount of memory in MB")
-def machine_create(name: str, cpus: int, memory: int, disk_size: int):
+def machine_create(name: str, cpus: int, memory: int, existing_disk: Union[str, None], disk_size: Union[int, None]):
     check_device()
     filepath = get_machine_settings_filepath(name)
     if os.path.exists(filepath):
@@ -217,7 +195,10 @@ def machine_create(name: str, cpus: int, memory: int, disk_size: int):
     if cpus < -1:
         raise CommandError("Invalid cpu count")
 
-    if disk_size < 5000:
+    if not existing_disk and not disk_size:
+        raise CommandError('You must specify an existing-disk or the disk-size parameter')
+
+    if not existing_disk and disk_size < 5000:
         raise CommandError("Disk size too small. Expected 5000 or more")
 
     if memory < 256:
@@ -230,13 +211,15 @@ def machine_create(name: str, cpus: int, memory: int, disk_size: int):
             "name": name,
             "cpus": cpus,
             "memory": memory,
-            "disk-size": disk_size
+            "disk-size": disk_size,
+            "custom-disk": existing_disk,
         }
     }
     with open(filepath, "w") as fp:
         yaml.dump(machine, fp, Dumper=Dumper)
 
-    create_disk(name)
+    if not existing_disk:
+        create_disk(name)
 
 
 @cli.command(help="Change the number of cpu cores used by an existing machine")
@@ -322,7 +305,7 @@ def machine_run_with_iso(name, iso):
     run_machine(name, iso)
 
 
-@cli.command(help="Run the machine with an iso attached on it")
+@cli.command(help="Run the machine")
 @click.option("--name", required=True, help="The name of the virtual machine")
 def machine_run(name):
     run_machine(name)
