@@ -90,7 +90,7 @@ def get_machine_run_command_line(machine_name, iso_file=None):
     settings = load_machine_settings(machine_name)
 
     gpus = []
-    pci_bus = {0: ("pci.5", "pci.6"), 1: ("pci.2", "pci.3")}
+    pci_bus = {0: ("pci.4", "pci.5"), 1: ("pci.2", "pci.3")}
     for index, gpu in enumerate(settings["machine"]["gpus"]):
         if index > 1:
             click.echo("Currently able to configure two gpus")
@@ -104,12 +104,27 @@ def get_machine_run_command_line(machine_name, iso_file=None):
     shared_memories = []
     if os.path.exists("/dev/shm/scream-ivshmem"):
         shared_memories = ["-object", "memory-backend-file,id=shmmem-shmem0,mem-path=/dev/shm/scream-ivshmem,size=2097152,share=yes",
-                           "-device", "ivshmem-plain,id=shmem0,memdev=shmmem-shmem0,bus=pci.8,addr=0x2"]
+                           "-device", "ivshmem-plain,id=shmem0,memdev=shmmem-shmem0,bus=pci.11,addr=0x2"]
 
     if settings["machine"].get("custom-disk"):
         hda_disk_path = settings["machine"]["custom-disk"]
     else:
         hda_disk_path = get_machine_disk_filepath(machine_name)
+
+    addtional_disk_devices = []
+    for disk_number in range(1, 3):
+        name = f"physical-disk{disk_number}"
+        if name in settings["machine"]:
+            device_name = settings["machine"][name]
+            addtional_disk_devices += [
+                "-blockdev", '{"driver":"host_device","filename":"%s","node-name":"libvirt-%s-storage","cache":{"direct":true,"no-flush":false},"auto-read-only":true,"discard":"unmap"}' % (
+                    device_name, disk_number
+                ),
+                "-blockdev", '{"node-name":"libvirt-%s-format","read-only":false,"cache":{"direct":true,"no-flush":false},"driver":"raw","file":"libvirt-%s-storage"}' % (
+                    disk_number, disk_number
+                ),
+                "-device", f"virtio-blk-pci,bus=pci.{6 + disk_number},addr=0x0,drive=libvirt-{disk_number}-format,id=virtio-disk2,write-cache=on",
+            ]
 
     domainkey = []
     keypath = get_machine_domainkey_path(machine_name)
@@ -153,14 +168,16 @@ def get_machine_run_command_line(machine_name, iso_file=None):
         "-device", "pcie-root-port,port=0x14,chassis=5,id=pci.5,bus=pcie.0,addr=0x2.0x4",
         "-device", "pcie-root-port,port=0x15,chassis=6,id=pci.6,bus=pcie.0,addr=0x2.0x5",
         "-device", "pcie-root-port,port=0x16,chassis=7,id=pci.7,bus=pcie.0,addr=0x2.0x6",
-        "-device", "pcie-root-port,port=0x17,chassis=9,id=pci.9,bus=pcie.0,addr=0x2.0x7",
-        "-device", "pcie-pci-bridge,id=pci.8,bus=pci.1,addr=0x0",
+        "-device", "pcie-root-port,port=0x17,chassis=8,id=pci.8,bus=pcie.0,addr=0x2.0x7",
+        "-device", "pcie-root-port,port=0x18,chassis=9,id=pci.9,bus=pcie.0,addr=0x3.0x1",
+        "-device", "pcie-root-port,port=0x19,chassis=10,id=pci.10,bus=pcie.0,addr=0x3.0x2",
+        "-device", "pcie-pci-bridge,id=pci.11,bus=pci.1,addr=0x0",
         "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap"}' % hda_disk_path,
         "-blockdev", '{"node-name":"libvirt-3-format","read-only":false,"driver":"qcow2","file":"libvirt-3-storage","backing":null}',
         "-device", "ide-hd,bus=ide.0,drive=libvirt-3-format,id=sata0-0-0,bootindex=1",
-    ] + gpus + dvd_driver + shared_memories + [
+    ] + gpus + dvd_driver + shared_memories + addtional_disk_devices + [
         "-netdev", f"tap,id=hostnet0,ifname={TapNetwork.TAP_INTERFACE_NAME},script=no,downscript=no",  # tap,fd=32,id=hostnet0
-        "-device", f"e1000e,netdev=hostnet0,id=net0,mac={settings['machine']['mac-address']},bus=pci.7,addr=0x0",
+        "-device", f"e1000e,netdev=hostnet0,id=net0,mac={settings['machine']['mac-address']},bus=pci.6,addr=0x0",
         # "-device", "qxl-vga,id=video0,ram_size=67108864,vram_size=67108864,vram64_size_mb=0,vgamem_mb=16,max_outputs=1,bus=pcie.0,addr=0x7",
         "-nographic",
         "-sandbox", "on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny",
@@ -293,6 +310,13 @@ def machine_set_gpus(name):
 @click.option("--name", required=True, help="The name of the virtual machine")
 def machine_create_disk(name):
     create_disk(name)
+
+
+@cli.command(help="Add a physical disk device to the machine")
+@click.option("--name", required=True, help="The name of the virtual machine")
+@click.option("--device", required=True, help="The disk device to map into the machine")
+def machine_set_disk_device(name, device):
+    update_machine_setting(name, "physical-disk1", device)
 
 
 @cli.command(help="Run the machine with an iso attached on it")
