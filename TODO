@@ -1,1 +1,5 @@
-[ ] Automate dependencies installation
+[X] Automate dependencies installation
+[ ] Update readme
+[ ] Allow use of non root user to run the VM
+[ ] Add ubuntu support
+

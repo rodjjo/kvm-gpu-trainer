@@ -46,7 +46,7 @@ def get_machine_disk_filepath(machine_name):
     disk_dir = os.path.join(VMS_DIR, f"{machine_name}-disks")
     if not os.path.exists(disk_dir):
         os.makedirs(disk_dir)
-    return os.path.join(disk_dir, f"{machine_name}.qcow")
+    return os.path.join(disk_dir, f"{machine_name}.qcow2")
 
 
 def create_disk(machine_name):
@@ -75,6 +75,9 @@ def update_machine_setting(machine_name, setting_name, value):
 
 def get_machine_run_command_line(machine_name, iso_file=None):
     settings = load_machine_settings(machine_name)
+
+    if not settings["machine"].get("gpus"):
+        raise CommandError("No gpu was specified to this machine. This project intend to use one or gpus.")
 
     gpus = []
     pci_bus = {0: ("pci.4", "pci.5"), 1: ("pci.2", "pci.3")}
