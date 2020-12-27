@@ -49,7 +49,7 @@ class GPU:
 
 
 def run_read_output(parameters, shell=False):
-    process = subprocess.Popen(list(parameters), stdout=subprocess.PIPE, universal_newlines=True, shell=shell)
+    process = subprocess.Popen(list(parameters), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=shell)
     try:
         for output_line in iter(process.stdout.readline, ""):
             yield output_line.strip()
