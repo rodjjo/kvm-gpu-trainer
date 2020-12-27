@@ -2,7 +2,7 @@ import sys
 
 import click
 
-from .management import device_info, machines, network  # noqa
+import vm_trainer.management  # noqa
 from .management.clickgroup import cli
 from .exceptions import CommandError
 
