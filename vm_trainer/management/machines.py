@@ -234,7 +234,7 @@ def machine_create(name: str, cpus: int, memory: int, existing_disk: Union[str, 
         create_disk(name)
 
 
-@cli.command(help="Change the number of cpu cores used by an existing machine")
+@cli.command(help="Define the number of cpu cores to use")
 @click.option("--name", required=True, help="The name of the virtual machine")
 @click.option("--cpus", default="-1", type=int, help="Number of cpu cores (default = -1 all cores)")
 def machine_set_cpus(name, cpus):
@@ -242,7 +242,7 @@ def machine_set_cpus(name, cpus):
     update_machine_setting(name, "cpus", cpus)
 
 
-@cli.command(help="Change the amount of memory RAM of an existing machine")
+@cli.command(help="Define the machine memory")
 @click.option("--name", required=True, help="The name of the virtual machine")
 @click.option("--memory", required=True, type=int, help="Amount of memory in MB")
 def machine_set_memory(name, memory):

@@ -1,3 +1,4 @@
+import platform
 import os
 from typing import List, NoReturn, Tuple
 import subprocess
@@ -20,7 +21,21 @@ class DependencyManager:
 
     @staticmethod
     def is_compatible_distro() -> bool:
-        return False
+        system_version = platform.release()
+        return "arch2" in system_version or "ubuntu" in system_version
+
+    @staticmethod
+    def is_processor_compatible() -> bool:
+        count = 0
+        with open("/proc/cpuinfo", "r") as fp:
+            for line in fp.readlines():
+                if 'vmx' in line or 'svm' in line:
+                    count += 1
+        return count != 0
+
+    @staticmethod
+    def has_kvm_device() -> bool:
+        return os.path.exists("/dev/kvm")
 
     @staticmethod
     def have_tool(tool_name: str, do_nothing_parameter: str) -> bool:
@@ -71,7 +86,13 @@ class DependencyManager:
 
     @staticmethod
     def check_all() -> NoReturn:
+        if not DependencyManager.is_compatible_distro():
+            raise CommandError("vm_trainer does not support your linux distribution (try using ubuntu or arch-linux)")
+        if not DependencyManager.is_processor_compatible():
+            raise CommandError("Your pocessor does not have virtualization capabilities")
         tool_errors = DependencyManager.check_all_tools()
+        if not DependencyManager.has_kvm_device():
+            tool_errors = ["Your system does not have kvm device /dev/kvm please install qemu and kvm"] + tool_errors
         path_errors = DependencyManager.check_all_paths()
         error_message = ""
 
