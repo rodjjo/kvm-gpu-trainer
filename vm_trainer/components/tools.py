@@ -8,8 +8,25 @@ import click
 
 from vm_trainer.exceptions import CommandError
 from vm_trainer.settings import TEMP_DIR
+from vm_trainer.utils import run_read_output
 
 CommandArgs = List[str]
+
+SCREAM_SERVICE_CONFIG = [
+    "[Unit]",
+    "Description=Scream IVSHMEM pulse reciever",
+    "After=pulseaudio.service",
+    "Wants=pulseaudio.service",
+    "",
+    "[Service]",
+    "Type=simple",
+    "ExecStartPre=/usr/bin/truncate -s 0 /dev/shm/scream-ivshmem",
+    "ExecStartPre=/usr/bin/dd if=/dev/zero of=/dev/shm/scream-ivshmem bs=1M count=2",
+    "ExecStart=/usr/bin/scream -m /dev/shm/scream-ivshmem -o pulse",
+    "",
+    "[Install]",
+    "WantedBy=default.target",
+]
 
 
 class ToolBase(object):
@@ -104,21 +121,7 @@ class PacmanTool(PackageManagementTool):
 
         scream_service_path = Path.expanduser("~/.config/systemd/user/scream-ivshmem-pulse.service")
         with open(scream_service_path, "w") as fp:
-            fp.writelines([
-                "[Unit]",
-                "Description=Scream IVSHMEM pulse reciever",
-                "After=pulseaudio.service",
-                "Wants=pulseaudio.service",
-                "",
-                "[Service]",
-                "Type=simple",
-                "ExecStartPre=/usr/bin/truncate -s 0 /dev/shm/scream-ivshmem",
-                "ExecStartPre=/usr/bin/dd if=/dev/zero of=/dev/shm/scream-ivshmem bs=1M count=2",
-                "ExecStart=/usr/bin/scream -m /dev/shm/scream-ivshmem -o pulse",
-                "",
-                "[Install]",
-                "WantedBy=default.target",
-            ])
+            fp.writelines(SCREAM_SERVICE_CONFIG)
         self.execute_application(["systemctl", "enable", "--user", "scream-ivshmem-pulse"])
         self.execute_application(["systemctl", "start", "--user", "scream-ivshmem-pulse"])
 
@@ -149,6 +152,51 @@ class IpTool(ToolBase):
     TOOL_NAME = "ip"
     DO_NOTHING_PARAMETER = "-V"
 
+    def get_mac_address(self, name: str) -> str:
+        with open(f"/sys/class/net/{name}/address", "r") as fp:
+            return fp.read().strip()
+
+    def interface_exists(self, name: str) -> bool:
+        try:
+            data = "".join(run_read_output(["ip", "-o", "link", "show", name])).strip()
+        except subprocess.CalledProcessError:
+            data = ""
+        return name in data
+
+    def create_bridge_interface(self, name: str, ip_address: str) -> NoReturn:
+        if self.interface_exists(name):
+            return
+        self.execute_as_super(["link", "add", "name", name, "type", "bridge"])
+        self.execute_as_super(["addr", "add", "dev", name, ip_address])
+        self.execute_as_super(["link", "set", name, "up"])
+
+    def create_tap_interface(self, name: str, bridge_name: str) -> NoReturn:
+        if self.interface_exists(name):
+            return
+        self.execute_as_super(["tuntap", "add", "dev", name, "mode", "tap"])
+        self.execute_as_super(["link", "set", name, "master", bridge_name])
+        self.execute_as_super(["link", "set", name, "up"])
+
+    def remove_tap_interface(self, name: str) -> NoReturn:
+        if not self.interface_exists(name):
+            return
+        try:
+            self.execute_as_super(["tuntap", "del", "dev", name, "mode", "tap"])
+        except CommandError:
+            pass
+
+    def remove_bridge_interface(self, name: str) -> NoReturn:
+        if not self.interface_exists(name):
+            return
+        try:
+            self.execute_as_super(["link", "set", name, "down"])
+        except CommandError:
+            pass
+        try:
+            self.execute_as_super(["link", "delete", name, "type", "bridge"])
+        except CommandError:
+            pass
+
 
 class EmulatorTool(ToolBase):
     TOOL_NAME = "qemu-system-x86_64"
@@ -163,6 +211,11 @@ class EmulatorTool(ToolBase):
 class IpTablesTool(ToolBase):
     TOOL_NAME = "iptables"
 
+    def create_nat_routing(self, bridge_interface: str, target_interface: str) -> NoReturn:
+        self.execute_as_super(["-t", "nat", "-A", "POSTROUTING", "-o", target_interface, "-j", "MASQUERADE"])
+        self.execute_as_super(["-A", "FORWARD", "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"])
+        self.execute_as_super(["-A", "FORWARD", "-i", bridge_interface, "-o", target_interface, "-j", "ACCEPT"])
+
 
 class GitTool(ToolBase):
     TOOL_NAME = "git"
@@ -175,9 +228,9 @@ class GitTool(ToolBase):
             raise CommandError("Could not install git tool")
 
     def clone(self, url: str, dir_name: str) -> str:
-        if not self.exists():
+        if not self.exists(False):
             PackageTool().install_git()
-        if not self.exists():
+        if not self.exists(False):
             raise CommandError("The git tool is required to install scream.")
         if not os.path.exists(TEMP_DIR):
             os.makedirs(TEMP_DIR)

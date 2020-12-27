@@ -28,6 +28,5 @@ def network_add_tap(target):
 
 
 @cli.command(help="Remove vmtrainer network interfaces")
-@click.option("--target", required=True, help="The network interface's name with internet access (physical interface)")
-def network_del_tap(target):
-    TapNetwork.remove_tap_network(target)
+def network_del_tap():
+    TapNetwork.remove_tap_network()

@@ -1,9 +1,9 @@
 import os
-import subprocess
 import re
+from typing import NoReturn
 
 from vm_trainer.utils import run_read_output
-from vm_trainer.exceptions import CommandError
+from vm_trainer.components.tools import IpTool, IpTablesTool
 
 
 class TapNetwork(object):
@@ -24,7 +24,7 @@ class TapNetwork(object):
                 yield match.group(1)
 
     @staticmethod
-    def is_physical_interface(filepath):
+    def is_physical_interface(filepath: str) -> bool:
         try:
             target_path = os.readlink(filepath)
         except OSError:
@@ -34,64 +34,25 @@ class TapNetwork(object):
         return False
 
     @staticmethod
-    def get_logical_interfaces():
+    def get_logical_interfaces() -> str:
         for name in os.listdir("/sys/class/net/"):
             if name not in ("..", ".") and not TapNetwork.is_physical_interface(os.path.join("/sys/class/net/", name)):
                 yield name
 
     @staticmethod
-    def get_mac(name):
-        with open(f"/sys/class/net/{name}/address", "r") as fp:
-            return fp.read().strip()
+    def get_mac(name: str) -> str:
+        return IpTool().get_mac_address(name)
 
     @staticmethod
-    def tap_interface_exists():
-        logical_ifs = TapNetwork.get_logical_interfaces()
-        if TapNetwork.TAP_INTERFACE_NAME in logical_ifs:
-            return True
-        if TapNetwork.BRIDGE_INTERFACE_NAME in logical_ifs:
-            return True
-        return False
+    def add_tap_network(target_interface: str, ip_address: str) -> NoReturn:
+        ip_tool = IpTool()
+        ip_tool.create_bridge_interface(TapNetwork.BRIDGE_INTERFACE_NAME, ip_address)
+        ip_tool.create_tap_interface(TapNetwork.TAP_INTERFACE_NAME, TapNetwork.BRIDGE_INTERFACE_NAME)
+        ip_tables = IpTablesTool()
+        ip_tables.create_nat_routing(TapNetwork.BRIDGE_INTERFACE_NAME, target_interface)
 
     @staticmethod
-    def add_tap_network(target_interface, ip_address):
-        if TapNetwork.tap_interface_exists():
-            raise CommandError(f"The tap network interface {TapNetwork.TAP_INTERFACE_NAME} is already configured.")
-
-        target_mac = TapNetwork.get_mac(target_interface)
-        if not target_mac:
-            raise CommandError(f"Unable to get the mac address of {target_interface} interface")
-
-        try:
-            subprocess.check_call(["sudo", "ip", "link", "add", "name", TapNetwork.BRIDGE_INTERFACE_NAME, "type", "bridge"])
-            subprocess.check_call(["sudo", "ip", "addr", "add", "dev", TapNetwork.BRIDGE_INTERFACE_NAME, ip_address])
-            subprocess.check_call(["sudo", "ip", "link", "set", "dev", TapNetwork.BRIDGE_INTERFACE_NAME, "address", target_mac])
-            subprocess.check_call(["sudo", "ip", "link", "set", TapNetwork.BRIDGE_INTERFACE_NAME, "up"])
-            subprocess.check_call(["sudo", "ip", "tuntap", "add", "dev", TapNetwork.TAP_INTERFACE_NAME, "mode", "tap"])
-            subprocess.check_call(["sudo", "ip", "link", "set", TapNetwork.TAP_INTERFACE_NAME, "master", TapNetwork.BRIDGE_INTERFACE_NAME])
-            subprocess.check_call(["sudo", "ip", "link", "set", target_interface, "up"])
-            subprocess.check_call(["sudo", "ip", "link", "set", TapNetwork.TAP_INTERFACE_NAME, "up"])
-            subprocess.check_call(["sudo", "iptables", "-t", "nat", "-A", "POSTROUTING", "-o", target_interface, "-j", "MASQUERADE"])
-            subprocess.check_call(["sudo", "iptables", "-A", "FORWARD", "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"])
-            subprocess.check_call(["sudo", "iptables", "-A", "FORWARD", "-i", TapNetwork.BRIDGE_INTERFACE_NAME, "-o", target_interface, "-j", "ACCEPT"])
-        except subprocess.CalledProcessError as e:
-            raise CommandError(e.args[0])
-
-    @staticmethod
-    def remove_tap_network(target_interface):
-        try:
-            subprocess.check_call(["sudo", "ip", "tuntap", "del", "dev", TapNetwork.TAP_INTERFACE_NAME, "mode", "tap"])
-        except subprocess.CalledProcessError:
-            pass
-        try:
-            subprocess.check_call(["sudo", "ip", "link", "set", TapNetwork.BRIDGE_INTERFACE_NAME, "down"])
-        except subprocess.CalledProcessError:
-            pass
-        try:
-            subprocess.check_call(["sudo", "ip", "link", "delete", TapNetwork.BRIDGE_INTERFACE_NAME, "type", "bridge"])
-        except subprocess.CalledProcessError:
-            pass
-        try:
-            subprocess.check_call(["sudo", "ip", "link", "set", "up", "dev", target_interface])
-        except subprocess.CalledProcessError:
-            pass
+    def remove_tap_network() -> NoReturn:
+        ip_tool = IpTool()
+        ip_tool.remove_tap_interface(TapNetwork.TAP_INTERFACE_NAME)
+        ip_tool.remove_bridge_interface(TapNetwork.BRIDGE_INTERFACE_NAME)
