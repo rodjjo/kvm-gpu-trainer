@@ -1,8 +1,8 @@
-from getpass import getuser
 import os
-from pathlib import Path
 import subprocess
-from typing import List, NoReturn, Union
+from getpass import getuser
+from pathlib import Path
+from typing import List, Union
 
 import click
 
@@ -34,22 +34,22 @@ class ToolBase(object):
     DO_NOTHING_PARAMETER = "--version"
 
     @staticmethod
-    def execute_application(parameters: CommandArgs, cwd: Union[str, None] = None) -> NoReturn:
+    def execute_application(parameters: CommandArgs, cwd: Union[str, None] = None) -> None:
         try:
             kwargs = {}
             if cwd:
                 kwargs["cwd"] = cwd
-            subprocess.check_call(parameters, **kwargs)
+            subprocess.check_call(parameters, **kwargs)  # type: ignore
         except subprocess.CalledProcessError as e:
             raise CommandError(e.args[0])
 
-    def execute(self, parameters: CommandArgs) -> NoReturn:
+    def execute(self, parameters: CommandArgs) -> None:
         self.execute_application([self.TOOL_NAME] + parameters)
 
-    def execute_as_super(self, parameters: CommandArgs) -> NoReturn:
+    def execute_as_super(self, parameters: CommandArgs) -> None:
         self.execute_application(["sudo", self.TOOL_NAME] + parameters)
 
-    def install(self, show_message: bool = False) -> NoReturn:
+    def install(self, show_message: bool = False) -> None:
         raise NotImplementedError()
 
     def exists(self, show_message: bool = False) -> bool:
@@ -63,7 +63,7 @@ class ToolBase(object):
                 pass
             return False
 
-    def check_exists(self) -> NoReturn:
+    def check_exists(self) -> None:
         if not self.exists():
             raise CommandError(f"The tool {self.TOOL_NAME} is not present in your system")
 
@@ -72,39 +72,39 @@ class ToolBase(object):
 
 
 class PackageManagementTool(ToolBase):
-    def update(self) -> NoReturn:
+    def update(self) -> None:
         raise NotImplementedError()
 
-    def install_qemu_kvm(self) -> NoReturn:
+    def install_qemu_kvm(self) -> None:
         raise NotImplementedError()
 
-    def install_scream(self) -> NoReturn:
+    def install_scream(self) -> None:
         raise NotImplementedError()
 
-    def install_git(self) -> NoReturn:
+    def install_git(self) -> None:
         raise NotImplementedError()
 
-    def install_build_essential(self) -> NoReturn:
+    def install_build_essential(self) -> None:
         raise NotImplementedError()
 
-    def configure_user_access(self) -> NoReturn:
+    def configure_user_access(self) -> None:
         self.execute_as_super(["sudo", "usermod", "-aG", "libvirt,libvirtd,kvm", getuser()])
 
-    def enable_virtd(self) -> NoReturn:
+    def enable_virtd(self) -> None:
         self.execute_application(["sudo", "systemctl", "enable", "libvirtd.service"])
         self.execute_application(["sudo", "systemctl", "start", "libvirtd.service"])
 
-    def virtd_check_status(self) -> NoReturn:
+    def virtd_check_status(self) -> None:
         self.execute_application(["sudo", "systemctl", "--no-pager", "status", "libvirtd.service"])
 
 
 class PacmanTool(PackageManagementTool):
     TOOL_NAME = "pacman"
 
-    def update(self) -> NoReturn:
+    def update(self) -> None:
         self.execute_as_super(["-Syy"])
 
-    def install_qemu_kvm(self) -> NoReturn:
+    def install_qemu_kvm(self) -> None:
         self.update()
         self.execute_as_super(["-S", "qemu", "virt-manager", "virt-viewer", "dnsmasq", "vde2", "bridge-utils", "openbsd-netcat"])
         self.execute_as_super(["-S", "ebtables", "iptables"])
@@ -112,24 +112,24 @@ class PacmanTool(PackageManagementTool):
         self.configure_user_access()
         self.virtd_check_status()
 
-    def install_scream(self) -> NoReturn:
+    def install_scream(self) -> None:
         clone_dirpath = GitTool().clone('https://aur.archlinux.org/scream.git', 'scream')
         self.execute_application(['makepkg'], cwd=clone_dirpath)
 
         binary_path = os.path.join(clone_dirpath, "pkg/scream/usr/bin/scream")
         self.execute_application(['sudo', 'cp', binary_path, "/usr/bin/scream"])
 
-        scream_service_path = Path.expanduser("~/.config/systemd/user/scream-ivshmem-pulse.service")
+        scream_service_path = Path.expanduser(Path("~/.config/systemd/user/scream-ivshmem-pulse.service"))
         with open(scream_service_path, "w") as fp:
             fp.writelines(SCREAM_SERVICE_CONFIG)
         self.execute_application(["systemctl", "enable", "--user", "scream-ivshmem-pulse"])
         self.execute_application(["systemctl", "start", "--user", "scream-ivshmem-pulse"])
 
-    def install_build_essential(self) -> NoReturn:
+    def install_build_essential(self) -> None:
         self.update()
         self.execute_as_super(["-S", "base-devel"])
 
-    def install_git(self) -> NoReturn:
+    def install_git(self) -> None:
         self.update()
         self.execute_as_super(["-S", "git"])
 
@@ -137,10 +137,10 @@ class PacmanTool(PackageManagementTool):
 class AptGetTool(PackageManagementTool):
     TOOL_NAME = "apt-get"
 
-    def update(self) -> NoReturn:
+    def update(self) -> None:
         self.execute_as_super(["update"])
 
-    def install_qemu_kvm(self) -> NoReturn:
+    def install_qemu_kvm(self) -> None:
         self.update()
         self.execute_as_super(["qemu-kvm", "libvirt-daemon-system", "libvirt-clients", "bridge-utils"])
         self.enable_virtd()
@@ -163,21 +163,21 @@ class IpTool(ToolBase):
             data = ""
         return name in data
 
-    def create_bridge_interface(self, name: str, ip_address: str) -> NoReturn:
+    def create_bridge_interface(self, name: str, ip_address: str) -> None:
         if self.interface_exists(name):
             return
         self.execute_as_super(["link", "add", "name", name, "type", "bridge"])
         self.execute_as_super(["addr", "add", "dev", name, ip_address])
         self.execute_as_super(["link", "set", name, "up"])
 
-    def create_tap_interface(self, name: str, bridge_name: str) -> NoReturn:
+    def create_tap_interface(self, name: str, bridge_name: str) -> None:
         if self.interface_exists(name):
             return
         self.execute_as_super(["tuntap", "add", "dev", name, "mode", "tap"])
         self.execute_as_super(["link", "set", name, "master", bridge_name])
         self.execute_as_super(["link", "set", name, "up"])
 
-    def remove_tap_interface(self, name: str) -> NoReturn:
+    def remove_tap_interface(self, name: str) -> None:
         if not self.interface_exists(name):
             return
         try:
@@ -185,7 +185,7 @@ class IpTool(ToolBase):
         except CommandError:
             pass
 
-    def remove_bridge_interface(self, name: str) -> NoReturn:
+    def remove_bridge_interface(self, name: str) -> None:
         if not self.interface_exists(name):
             return
         try:
@@ -202,7 +202,7 @@ class EmulatorTool(ToolBase):
     TOOL_NAME = "qemu-system-x86_64"
     DO_NOTHING_PARAMETER = "-version"
 
-    def install(self, show_message: bool = True) -> NoReturn:
+    def install(self, show_message: bool = True) -> None:
         if self.exists(show_message):
             return
         PackageTool().install_qemu_kvm()
@@ -211,7 +211,7 @@ class EmulatorTool(ToolBase):
 class IpTablesTool(ToolBase):
     TOOL_NAME = "iptables"
 
-    def create_nat_routing(self, bridge_interface: str, target_interface: str) -> NoReturn:
+    def create_nat_routing(self, bridge_interface: str, target_interface: str) -> None:
         self.execute_as_super(["-t", "nat", "-A", "POSTROUTING", "-o", target_interface, "-j", "MASQUERADE"])
         self.execute_as_super(["-A", "FORWARD", "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"])
         self.execute_as_super(["-A", "FORWARD", "-i", bridge_interface, "-o", target_interface, "-j", "ACCEPT"])

@@ -1,6 +1,7 @@
-from .clickgroup import cli
 from vm_trainer.components.dependencies import DependencyManager
 from vm_trainer.components.tools import PackageTool
+
+from .clickgroup import cli
 
 
 @cli.command(help="Check all depedencies")

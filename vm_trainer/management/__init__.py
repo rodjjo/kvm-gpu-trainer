@@ -1,1 +1,1 @@
-from . import device_info, machines, network, dependencies # noqa
+from . import dependencies, device_info, machines, network  # noqa

@@ -1,9 +1,9 @@
 import os
 import re
-from typing import NoReturn
+from typing import Iterator
 
+from vm_trainer.components.tools import IpTablesTool, IpTool
 from vm_trainer.utils import run_read_output
-from vm_trainer.components.tools import IpTool, IpTablesTool
 
 
 class TapNetwork(object):
@@ -34,7 +34,7 @@ class TapNetwork(object):
         return False
 
     @staticmethod
-    def get_logical_interfaces() -> str:
+    def get_logical_interfaces() -> Iterator[str]:
         for name in os.listdir("/sys/class/net/"):
             if name not in ("..", ".") and not TapNetwork.is_physical_interface(os.path.join("/sys/class/net/", name)):
                 yield name
@@ -44,7 +44,7 @@ class TapNetwork(object):
         return IpTool().get_mac_address(name)
 
     @staticmethod
-    def add_tap_network(target_interface: str, ip_address: str) -> NoReturn:
+    def add_tap_network(target_interface: str, ip_address: str) -> None:
         ip_tool = IpTool()
         ip_tool.create_bridge_interface(TapNetwork.BRIDGE_INTERFACE_NAME, ip_address)
         ip_tool.create_tap_interface(TapNetwork.TAP_INTERFACE_NAME, TapNetwork.BRIDGE_INTERFACE_NAME)
@@ -52,7 +52,7 @@ class TapNetwork(object):
         ip_tables.create_nat_routing(TapNetwork.BRIDGE_INTERFACE_NAME, target_interface)
 
     @staticmethod
-    def remove_tap_network() -> NoReturn:
+    def remove_tap_network() -> None:
         ip_tool = IpTool()
         ip_tool.remove_tap_interface(TapNetwork.TAP_INTERFACE_NAME)
         ip_tool.remove_bridge_interface(TapNetwork.BRIDGE_INTERFACE_NAME)
