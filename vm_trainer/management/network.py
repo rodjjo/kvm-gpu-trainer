@@ -1,6 +1,8 @@
 import click
-from .clickgroup import cli
+
 from vm_trainer.components.network import TapNetwork
+
+from .clickgroup import cli
 
 
 @cli.command(help="Show logical network interfaces")

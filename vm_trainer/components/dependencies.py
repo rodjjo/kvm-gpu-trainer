@@ -1,10 +1,11 @@
-import platform
 import os
-from typing import List, NoReturn, Tuple
+import platform
 import subprocess
+from typing import List, Tuple
+
+from vm_trainer.exceptions import CommandError
 
 from .tools import EmulatorTool, IpTablesTool, IpTool
-from vm_trainer.exceptions import CommandError
 
 StringList = List[str]
 ToolChecklist = List[Tuple[str, str, str]]
@@ -47,7 +48,7 @@ class DependencyManager:
         return False
 
     @staticmethod
-    def get_tool_list() -> StringList:
+    def get_tool_list() -> ToolChecklist:
         not_found_msg = "is not present in your system."
         return [
             (DependencyManager.EMULATOR_TOOL, "-version", f"{DependencyManager.EMULATOR_TOOL} {not_found_msg}"),
@@ -64,7 +65,7 @@ class DependencyManager:
         ]
 
     @staticmethod
-    def check_all_tools() -> ToolChecklist:
+    def check_all_tools() -> StringList:
         tool_errors = []
         tools = DependencyManager.get_tool_list()
         with open(os.devnull, 'w') as nullfp:
@@ -85,7 +86,7 @@ class DependencyManager:
         return path_errors
 
     @staticmethod
-    def check_all() -> NoReturn:
+    def check_all() -> None:
         if not DependencyManager.is_compatible_distro():
             raise CommandError("vm_trainer does not support your linux distribution (try using ubuntu or arch-linux)")
         if not DependencyManager.is_processor_compatible():

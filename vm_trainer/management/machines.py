@@ -7,23 +7,14 @@ from uuid import uuid4
 import click
 import yaml
 
-from .clickgroup import cli
+from vm_trainer.components.dependencies import DependencyManager
 from vm_trainer.components.network import TapNetwork
 from vm_trainer.exceptions import CommandError
 from vm_trainer.settings import VMS_DIR
-from vm_trainer.utils import gpus_from_iommu_devices, create_qcow_disk
-from vm_trainer.components.dependencies import DependencyManager
-from vm_trainer.yamldoc import Dumper, Loader
+from vm_trainer.utils import create_qcow_disk, gpus_from_iommu_devices
 
+from .clickgroup import cli
 
-# brctl addbr br0
-# brctl addif br0 enp0s25
-# ip tuntap add dev tap0 mode tap
-# brctl addif br0 tap0
-# ip link set up dev tap0
-# ip addr add dev bridge_name 192.168.66.66/24
-# If any of the bridged devices (e.g. eth0, tap0) had dhcpcd enabled, stop and disable the dhcpcd@eth0.service daemon. Or set IP=no to the netctl profiles.
-# ip link set dev br0 address XX:XX:XX:XX:XX:XX  where xx:xx... is the mac address to the real interface
 
 def get_random_mac():
     # qemu mac address
@@ -47,7 +38,7 @@ def load_machine_settings(machine_name):
         raise CommandError(f'File not found: {filepath}')
 
     with open(filepath) as fp:
-        return yaml.load(fp, Loader=Loader)
+        return yaml.load(fp, Loader=yaml.Loader)
 
 
 def get_machine_disk_filepath(machine_name):
@@ -78,7 +69,7 @@ def update_machine_setting(machine_name, setting_name, value):
 
     filepath = get_machine_settings_filepath(machine_name)
     with open(filepath, "w") as fp:
-        yaml.dump(machine_settings, fp, Dumper=Dumper)
+        yaml.dump(machine_settings, fp, Dumper=yaml.Dumper)
 
 
 def get_machine_run_command_line(machine_name, iso_file=None):
@@ -210,7 +201,7 @@ def machine_create(name: str, cpus: int, memory: int, existing_disk: Union[str, 
     if not existing_disk and not disk_size:
         raise CommandError('You must specify an existing-disk or the disk-size parameter')
 
-    if not existing_disk and disk_size < 5000:
+    if not existing_disk and disk_size is not None and disk_size < 5000:
         raise CommandError("Disk size too small. Expected 5000 or more")
 
     if memory < 256:
@@ -228,7 +219,7 @@ def machine_create(name: str, cpus: int, memory: int, existing_disk: Union[str, 
         }
     }
     with open(filepath, "w") as fp:
-        yaml.dump(machine, fp, Dumper=Dumper)
+        yaml.dump(machine, fp, Dumper=yaml.Dumper)
 
     if not existing_disk:
         create_disk(name)
