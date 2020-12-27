@@ -27,5 +27,5 @@ class UserInput:
     @staticmethod
     def list_keyboards() -> Iterator[str]:
         for input_device in UserInput.list_devices():
-            if 'keyboard' in input_device.lower():
+            if 'keyboard' in input_device.lower() and 'mouse' not in input_device.lower():
                 yield input_device

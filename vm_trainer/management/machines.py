@@ -1,7 +1,7 @@
 import os
 import random
 import subprocess
-from typing import Union
+from typing import Union, List
 from uuid import uuid4
 
 import click
@@ -12,6 +12,7 @@ from vm_trainer.components.network import TapNetwork
 from vm_trainer.exceptions import CommandError
 from vm_trainer.settings import VMS_DIR
 from vm_trainer.utils import create_qcow_disk, gpus_from_iommu_devices
+from vm_trainer.components.user_input import UserInput
 
 from .clickgroup import cli
 
@@ -119,6 +120,17 @@ def get_machine_run_command_line(machine_name, iso_file=None):
             "-object", f"secret,id=masterKey0,format=raw,file={keypath}"
         ]
 
+    evdev_inputs = []
+    if settings["machine"].get("evdev-mouse"):
+        evdev_inputs += [
+            "-object", f"input-linux,id=mouse1,evdev={settings['machine']['evdev-mouse']}",
+        ]
+
+    if settings["machine"].get("evdev-keyboard"):
+        evdev_inputs += [
+            "-object", f"input-linux,id=kbd1,evdev={settings['machine']['evdev-keyboard']},grab_all=on,repeat=on",
+        ]
+
     dvd_driver = []
     if iso_file and os.path.exists(iso_file):
         dvd_driver = [
@@ -161,15 +173,15 @@ def get_machine_run_command_line(machine_name, iso_file=None):
         "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap"}' % hda_disk_path,
         "-blockdev", '{"node-name":"libvirt-3-format","read-only":false,"driver":"qcow2","file":"libvirt-3-storage","backing":null}',
         "-device", "ide-hd,bus=ide.0,drive=libvirt-3-format,id=sata0-0-0,bootindex=1",
-    ] + gpus + dvd_driver + shared_memories + addtional_disk_devices + [
+    ] + gpus + dvd_driver + shared_memories + addtional_disk_devices + evdev_inputs + [
         "-netdev", f"tap,id=hostnet0,ifname={TapNetwork.TAP_INTERFACE_NAME},script=no,downscript=no",  # tap,fd=32,id=hostnet0
         "-device", f"e1000e,netdev=hostnet0,id=net0,mac={settings['machine']['mac-address']},bus=pci.6,addr=0x0",
         # "-device", "qxl-vga,id=video0,ram_size=67108864,vram_size=67108864,vram64_size_mb=0,vgamem_mb=16,max_outputs=1,bus=pcie.0,addr=0x7",
         "-nographic",
         "-sandbox", "on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny",
         "-msg", "timestamp=on",
-        "-object", "input-linux,id=mouse1,evdev=/dev/input/by-id/usb-HP_HP_Wireless_Keyboard_Combo_200-event-mouse",  # share host keyboard
-        "-object", "input-linux,id=kbd1,evdev=/dev/input/by-id/usb-SIGMACHIP_USB_Keyboard-event-kbd,grab_all=on,repeat=on",  # share host mouse
+        # "-object", "input-linux,id=mouse1,evdev=/dev/input/by-id/usb-HP_HP_Wireless_Keyboard_Combo_200-event-mouse",  # share host keyboard
+        # "-object", "input-linux,id=kbd1,evdev=/dev/input/by-id/usb-SIGMACHIP_USB_Keyboard-event-kbd,grab_all=on,repeat=on",  # share host mouse
     ]
     return command_line
 
@@ -179,8 +191,13 @@ def run_machine(machine_name, iso_file=None):
     subprocess.check_call(command_line)
 
 
-def setup_machine(machine_name, iso_file):
-    pass
+def select_something(message: str, options: List[str]) -> int:
+    for index, text in enumerate(options):
+        click.echo(f"{index} - {text}")
+    answer = input(message)
+    if answer not in [str(i) for i in range(len(options))]:
+        raise CommandError("The option {answer} is not a valid one")
+    return int(answer)
 
 
 @cli.command(help="Create new machine settings")
@@ -290,6 +307,22 @@ def machine_set_gpus(name):
             }
         data.append(item)
     update_machine_setting(name, "gpus", data)
+
+
+@cli.command(help="Select a mouse from evdev devices")
+@click.option("--name", required=True, help="The name of the virtual machine")
+def machine_select_mouse(name):
+    mouses = list(UserInput.list_mouses())
+    index = select_something("Type the mouse number from the options above:", mouses)
+    update_machine_setting(name, 'evdev-mouse', os.path.join(UserInput.INPUT_DEVICES_DIRECTORY, mouses[index]))
+
+
+@cli.command(help="Select a keyboard from evdev devices")
+@click.option("--name", required=True, help="The name of the virtual machine")
+def machine_select_keyboard(name):
+    keyboards = list(UserInput.list_keyboards())
+    index = select_something("Type the keyboard number from the options above:", keyboards)
+    update_machine_setting(name, 'evdev-keyboard', os.path.join(UserInput.INPUT_DEVICES_DIRECTORY, keyboards[index]))
 
 
 @cli.command(help='Create the virtual machine disk (qcow)')
