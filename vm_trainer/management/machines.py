@@ -8,11 +8,12 @@ import click
 import yaml
 
 from .clickgroup import cli
-from ..components.network import TapNetwork
-from ..exceptions import CommandError
-from ..settings import VMS_DIR
-from ..utils import check_compatible_device, gpus_from_iommu_devices, create_qcow_disk
-from ..yamldoc import Dumper, Loader
+from vm_trainer.components.network import TapNetwork
+from vm_trainer.exceptions import CommandError
+from vm_trainer.settings import VMS_DIR
+from vm_trainer.utils import gpus_from_iommu_devices, create_qcow_disk
+from vm_trainer.components.dependencies import DependencyManager
+from vm_trainer.yamldoc import Dumper, Loader
 
 
 # brctl addbr br0
@@ -78,12 +79,6 @@ def update_machine_setting(machine_name, setting_name, value):
     filepath = get_machine_settings_filepath(machine_name)
     with open(filepath, "w") as fp:
         yaml.dump(machine_settings, fp, Dumper=Dumper)
-
-
-def check_device():
-    error = check_compatible_device()
-    if error:
-        raise CommandError(error)
 
 
 def get_machine_run_command_line(machine_name, iso_file=None):
@@ -204,7 +199,7 @@ def setup_machine(machine_name, iso_file):
 @click.option("--existing-disk", required=False, type=str, help="Use an existing disk")
 @click.option("--memory", required=True, type=int, help="Amount of memory in MB")
 def machine_create(name: str, cpus: int, memory: int, existing_disk: Union[str, None], disk_size: Union[int, None]):
-    check_device()
+    DependencyManager.check_all()
     filepath = get_machine_settings_filepath(name)
     if os.path.exists(filepath):
         raise CommandError(f"The VM {name} already exists. File: {filepath}")
@@ -239,19 +234,19 @@ def machine_create(name: str, cpus: int, memory: int, existing_disk: Union[str, 
         create_disk(name)
 
 
-@cli.command(help="Change the number of cpu cores used by an existing machine")
+@cli.command(help="Define the number of cpu cores to use")
 @click.option("--name", required=True, help="The name of the virtual machine")
 @click.option("--cpus", default="-1", type=int, help="Number of cpu cores (default = -1 all cores)")
 def machine_set_cpus(name, cpus):
-    check_device()
+    DependencyManager.check_all()
     update_machine_setting(name, "cpus", cpus)
 
 
-@cli.command(help="Change the amount of memory RAM of an existing machine")
+@cli.command(help="Define the machine memory")
 @click.option("--name", required=True, help="The name of the virtual machine")
 @click.option("--memory", required=True, type=int, help="Amount of memory in MB")
 def machine_set_memory(name, memory):
-    check_device()
+    DependencyManager.check_all()
     update_machine_setting(name, "memory", memory)
 
 

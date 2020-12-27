@@ -2,8 +2,8 @@ import os
 import subprocess
 import re
 
-from ..utils import run_read_output
-from ..exceptions import CommandError
+from vm_trainer.utils import run_read_output
+from vm_trainer.exceptions import CommandError
 
 
 class TapNetwork(object):
@@ -95,13 +95,3 @@ class TapNetwork(object):
             subprocess.check_call(["sudo", "ip", "link", "set", "up", "dev", target_interface])
         except subprocess.CalledProcessError:
             pass
-
-
-# brctl addbr br0
-# brctl addif br0 enp0s25
-# ip tuntap add dev tap0 mode tap
-# brctl addif br0 tap0
-# ip link set up dev tap0
-# ip addr add dev bridge_name 192.168.66.66/24
-# If any of the bridged devices (e.g. eth0, tap0) had dhcpcd enabled, stop and disable the dhcpcd@eth0.service daemon. Or set IP=no to the netctl profiles.
-# ip link set dev br0 address XX:XX:XX:XX:XX:XX  where xx:xx... is the mac address to the real interface

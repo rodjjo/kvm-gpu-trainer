@@ -1,14 +1,17 @@
+import os
 import sys
 
 import click
 
-from .management import device_info, machines, network  # noqa
+import vm_trainer.management  # noqa
 from .management.clickgroup import cli
 from .exceptions import CommandError
 
 
 def main():
     try:
+        if os.geteuid() == 0:
+            raise CommandError("vm_trainer can't be executed by the root user. Please do not use sudo.")
         cli()
     except CommandError as e:
         click.echo(e.args[0])
