@@ -142,7 +142,7 @@ class AptGetTool(PackageManagementTool):
 
     def install_qemu_kvm(self) -> None:
         self.update()
-        self.execute_as_super(["qemu-kvm", "libvirt-daemon-system", "libvirt-clients", "bridge-utils"])
+        self.execute_as_super(["install", "qemu-kvm", "libvirt-daemon-system", "libvirt-clients", "bridge-utils"])
         self.enable_virtd()
         self.configure_user_access()
         self.virtd_check_status()
