@@ -1,6 +1,0 @@
-[X] Automate dependencies installation
-[ ] Update readme
-[ ] Allow use of non root user to run the VM
-[ ] Add ubuntu support
-[ ] enable dhcp on the bridge network
-
