@@ -12,6 +12,9 @@ Early development state project (WIP).
 
 ## TODO List
 * Complete code type hints
+* Add an global configuration
+* Allow to define the project root data directory
+* Turn possible use of setuptools
 * Allow use of non root user launch the virtual machine.
 * Add ubuntu support.
 * Enable dhcp on the bridge network.
