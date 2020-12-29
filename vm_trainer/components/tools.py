@@ -63,7 +63,7 @@ class ToolBase(object):
                 pass
             return False
 
-    def check_exists(self) -> None:
+    def must_exists(self) -> None:
         if not self.exists():
             raise CommandError(f"The tool {self.TOOL_NAME} is not present in your system")
 
