@@ -179,9 +179,9 @@ class Machine(object):
             "-device", f"e1000e,netdev=hostnet0,id=net0,mac={self._settings['mac-address']},bus=pci.6,addr=0x0",
         ]
 
-    def exec_parameters_iso_disk(self, iso_path) -> List[str]:
+    def exec_parameters_iso_disk(self, iso_path: str) -> List[str]:
         if not iso_path:
-            return [""]
+            return []
 
         abs_iso_path = os.path.abspath(iso_path)
         if not os.path.exists(abs_iso_path):
