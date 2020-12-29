@@ -1,36 +1,39 @@
+from __future__ import annotations
+
 import os
 import re
 import subprocess
+from typing import Dict, Iterator, List
 
 AUDIO_VIDEO_VENDORS_RE = ({"audio": "NVIDIA Corporation", "video": "NVIDIA Corporation.*GeForce"},)
 DEVICE_INFO_RE = "([0-9]{2}:[0-9]{2}\\.[0-9])[^:]*:(.*)\\[([0-9a-f]{4}):([0-9a-f]{4})\\].*"  # parse a string like: 01:00.0 VGA compatible controller [0300]: NVIDIA Corporation GP104 [GeForce GTX 1080] [10de:1b80] (rev a1)
 
 
 class GPU:
-    def __init__(self, video_vendor, audio_vendor, video_address, audio_address):
+    def __init__(self, video_vendor: str, audio_vendor: str, video_address: str, audio_address: str) -> None:
         self._video_vendor = video_vendor
         self._audio_vendor = audio_vendor
         self._video_address = video_address
         self._audio_address = audio_address
 
     @property
-    def video_vendor(self):
+    def video_vendor(self) -> str:
         return self._video_vendor
 
     @property
-    def audio_vendor(self):
+    def audio_vendor(self) -> str:
         return self._audio_vendor
 
     @property
-    def audio_address(self):
+    def audio_address(self) -> str:
         return self._audio_address
 
     @property
-    def video_address(self):
+    def video_address(self) -> str:
         return self._video_address
 
     @classmethod
-    def from_vendor(cls, vendor_devices):
+    def from_vendor(cls, vendor_devices: Dict) -> GPU:
         device_re = re.compile(DEVICE_INFO_RE)
         video_match = device_re.match(vendor_devices["video"])
         audio_match = device_re.match(vendor_devices["audio"])
@@ -48,7 +51,7 @@ class GPU:
         return cls(video_vendor, audio_vendor, video_address, audio_address)
 
 
-def run_read_output(parameters, shell=False):
+def run_read_output(parameters: List[str], shell: bool = False) -> Iterator[str]:
     process = subprocess.Popen(list(parameters), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=shell)
     try:
         for output_line in iter(process.stdout.readline, ""):
@@ -60,14 +63,14 @@ def run_read_output(parameters, shell=False):
             raise subprocess.CalledProcessError(return_code, str(parameters))
 
 
-def get_IOMMU_information():
+def get_IOMMU_information() -> List[str]:
     return list(run_read_output([
         "sh", "-c",
         "dmesg | grep -i -e DMAR -e IOMMU"
     ]))
 
 
-def get_iommu_devices():
+def get_iommu_devices() -> Iterator[str]:
     base_dir = "/sys/kernel/iommu_groups/"
     for dir in os.listdir(base_dir):
         for device in os.listdir(f"{base_dir}/{dir}/devices"):
@@ -75,7 +78,7 @@ def get_iommu_devices():
                 yield line
 
 
-def search_gpu_device(devices, vendor):
+def search_gpu_device(devices: List[str], vendor: Dict) -> Dict:
     audio = ""
     video = ""
     video_re = re.compile(vendor["video"])
@@ -97,7 +100,7 @@ def search_gpu_device(devices, vendor):
     return {"video": video, "audio": audio}
 
 
-def gpus_from_iommu_devices():
+def gpus_from_iommu_devices() -> List[GPU]:
     devices = list(get_iommu_devices())
     gpus = []
     for vendor in AUDIO_VIDEO_VENDORS_RE:
@@ -108,7 +111,7 @@ def gpus_from_iommu_devices():
     return gpus
 
 
-def create_qcow_disk(disk_filepath, disk_size):
+def create_qcow_disk(disk_filepath: str, disk_size: int) -> Iterator[str]:
     for line in run_read_output([
             "qemu-img", "create", "-f", "qcow2", str(disk_filepath), f"{disk_size}M"
     ]):

@@ -15,7 +15,7 @@ from vm_trainer.settings import Settings
 from vm_trainer.utils import create_qcow_disk, gpus_from_iommu_devices
 
 
-def get_random_mac():
+def get_random_mac() -> str:
     random_sufix = (
         random.randint(0, 255),
         random.randint(0, 255),
@@ -38,7 +38,8 @@ class Machine(object):
     BIOS_PATH = "/usr/share/edk2-ovmf/x64/OVMF_CODE.fd"
 
     def __init__(self, name: str) -> None:
-        self._name = name
+        self._name: str = name
+        self._settings: dict
         self._settings = {
             "uuid": str(uuid4()),
             "mac-address": get_random_mac(),
@@ -95,15 +96,15 @@ class Machine(object):
 
     def disk_must_exists(self) -> None:
         if self._settings.get("disk-path"):
-            if not os.path.exists(self._settings["disk-path"]):
+            if not Path(self._settings["disk-path"]).exists():
                 raise CommandError(f"File not found: {self._settings['disk-path']}")
         elif not self.get_disk_path().exists():
             raise CommandError(f"File not found: {self.get_disk_path()}")
 
     def raw_disk_must_exists(self) -> None:
         if self._settings.get("raw-disk1"):
-            if os.path.exists(self._settings["raw-disk1"]):
-                return CommandError(f"Disk device not found: {self._settings['raw-disk1']}")
+            if Path(self._settings["raw-disk1"]).exists():
+                raise CommandError(f"Disk device not found: {self._settings['raw-disk1']}")
 
     def exec_parameters_pci_slots(self) -> List[str]:
         return [
@@ -135,6 +136,7 @@ class Machine(object):
     def exec_parameters_gpus(self) -> List[str]:
         params = []
         pci_bus = {0: ("pci.4", "pci.5"), 1: ("pci.2", "pci.3")}
+        gpu: dict
         for index, gpu in enumerate(self._settings["gpus"]):
             if index > 1:
                 click.echo("Currently able to configure two gpus")
@@ -207,7 +209,7 @@ class Machine(object):
             "-machine", 'pc-q35-5.1,accel=kvm,usb=off,vmport=off,dump-guest-core=off,kernel_irqchip=on',
             "-bios", self.BIOS_PATH,
             "-cpu", "host,migratable=on,hv-time,hv-relaxed,hv-vapic,hv-spinlocks=0x4000,hv-vpindex,hv-runtime,hv-synic,hv-stimer,hv-reset,hv-vendor-id=441863197303,hv-frequencies,hv-reenlightenment,hv-tlbflush,kvm=off",
-            "-m", str((self._settings["memory"] // 4) * 4),
+            "-m", str(self._settings["memory"]),
             "-overcommit",
             "mem-lock=off",
             "-smp", f"4,sockets=1,dies=1,cores={self._settings['cpus']},threads=1",
@@ -330,12 +332,12 @@ class Machine(object):
             data.append(item)
         self._settings["gpus"] = data
 
-    def select_mouse(self):
+    def select_mouse(self) -> None:
         mouses = list(UserInput.list_mouses())
         index = select_something("Type the mouse number from the options above:", mouses)
         self._settings['evdev-mouse'] = os.path.join(UserInput.INPUT_DEVICES_DIRECTORY, mouses[index])
 
-    def select_keyboard(self):
+    def select_keyboard(self) -> None:
         keyboards = list(UserInput.list_keyboards())
         index = select_something("Type the keyboard number from the options above:", keyboards)
         self._settings['evdev-keyboard'] = os.path.join(UserInput.INPUT_DEVICES_DIRECTORY, keyboards[index])

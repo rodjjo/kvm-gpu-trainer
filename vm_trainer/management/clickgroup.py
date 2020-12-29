@@ -1,6 +1,8 @@
+from typing import NoReturn
+
 import click
 
 
 @click.group()
-def cli():
+def cli() -> NoReturn:
     pass

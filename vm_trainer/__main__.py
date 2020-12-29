@@ -8,7 +8,7 @@ from vm_trainer.exceptions import CommandError
 from vm_trainer.management.clickgroup import cli
 
 
-def main():
+def main() -> None:
     try:
         if os.geteuid() == 0:
             raise CommandError("vm_trainer can't be executed by the root user. Please do not use sudo.")
