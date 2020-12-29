@@ -7,7 +7,7 @@ from typing import List, Union
 import click
 
 from vm_trainer.exceptions import CommandError
-from vm_trainer.settings import TEMP_DIR
+from vm_trainer.settings import Settings
 from vm_trainer.utils import run_read_output
 
 CommandArgs = List[str]
@@ -232,9 +232,8 @@ class GitTool(ToolBase):
             PackageTool().install_git()
         if not self.exists(False):
             raise CommandError("The git tool is required to install scream.")
-        if not os.path.exists(TEMP_DIR):
-            os.makedirs(TEMP_DIR)
-        clone_path = os.path.join(TEMP_DIR, dir_name)
+        settings = Settings()
+        clone_path = os.path.join(settings.temp_dir(), dir_name)
         self.execute(['clone', url, clone_path])
         return clone_path
 

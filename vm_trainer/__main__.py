@@ -4,9 +4,8 @@ import sys
 import click
 
 import vm_trainer.management  # noqa
-
-from .exceptions import CommandError
-from .management.clickgroup import cli
+from vm_trainer.exceptions import CommandError
+from vm_trainer.management.clickgroup import cli
 
 
 def main():

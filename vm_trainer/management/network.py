@@ -1,8 +1,8 @@
 import click
 
 from vm_trainer.components.network import TapNetwork
-
-from .clickgroup import cli
+from vm_trainer.settings import Settings
+from vm_trainer.management.clickgroup import cli
 
 
 @cli.command(help="Show logical network interfaces")
@@ -26,7 +26,8 @@ def network_show_mac(name):
 @cli.command(help="Add vmtrainer network interfaces")
 @click.option("--target", required=True, help="The network interface's name with internet access (physical interface)")
 def network_add_tap(target):
-    TapNetwork.add_tap_network(target, "192.168.66.1/24")
+    settings = Settings()
+    TapNetwork.add_tap_network(target, settings.network_ip())
 
 
 @cli.command(help="Remove vmtrainer network interfaces")

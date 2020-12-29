@@ -1,10 +1,9 @@
 import click
 
 from vm_trainer.components.user_input import UserInput
+from vm_trainer.management.clickgroup import cli
 from vm_trainer.utils import (get_iommu_devices, get_IOMMU_information,
                               gpus_from_iommu_devices)
-
-from .clickgroup import cli
 
 
 @cli.command(help="Show IOMMU information")

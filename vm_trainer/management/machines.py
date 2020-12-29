@@ -6,9 +6,8 @@ import click
 from vm_trainer.components.dependencies import DependencyManager
 from vm_trainer.components.machine import Machine
 from vm_trainer.exceptions import CommandError
-from vm_trainer.settings import VMS_DIR
-
-from .clickgroup import cli
+from vm_trainer.management.clickgroup import cli
+from vm_trainer.settings import Settings
 
 
 @cli.command(help="Create new machine settings")
@@ -38,8 +37,10 @@ def machine_create(name: str, cpus: int, memory: int, existing_disk: Union[str, 
     machine.set_memory(memory)
     machine.save()
 
-    if not machine.raw_disk_present():
+    try:
         machine.create_disk()
+    except CommandError:
+        pass
 
 
 @cli.command(help="Define the number of cpu cores to use")
@@ -64,7 +65,8 @@ def machine_set_memory(name, memory):
 
 @cli.command(help="List existing machine names")
 def machine_list():
-    for name in os.listdir(VMS_DIR):
+    settings = Settings()
+    for name in os.listdir(settings.machines_dir()):
         if not name.endswith('.yaml'):
             continue
         click.echo(name[0:-5])

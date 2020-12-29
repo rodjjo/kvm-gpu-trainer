@@ -1,5 +1,6 @@
 import os
 import random
+from pathlib import Path
 from typing import List, Union
 from uuid import uuid4
 
@@ -10,7 +11,7 @@ from vm_trainer.components.network import TapNetwork
 from vm_trainer.components.tools import EmulatorTool
 from vm_trainer.components.user_input import UserInput
 from vm_trainer.exceptions import CommandError
-from vm_trainer.settings import VMS_DIR
+from vm_trainer.settings import Settings
 from vm_trainer.utils import create_qcow_disk, gpus_from_iommu_devices
 
 
@@ -51,24 +52,23 @@ class Machine(object):
             self.load_settings()
 
     def exists(self) -> bool:
-        if not os.path.exists(VMS_DIR):
-            os.makedirs(VMS_DIR)
-        return os.path.exists(self.settings_path())
+        return self.config_path().exists()
 
     def must_exists(self) -> None:
         if not self.exists():
             raise CommandError(f"The Machine {self._name} does not exist")
 
     def load_settings(self) -> None:
-        if os.path.exists(self.settings_path()):
-            with open(self.settings_path(), "r") as fp:
+        if self.config_path().exists():
+            with open(self.config_path(), "r") as fp:
                 self._settings = yaml.load(fp, Loader=yaml.Loader)["machine"]
 
-    def settings_path(self) -> str:
-        return os.path.join(VMS_DIR, f"{self._name}.yaml")
+    def config_path(self) -> Path:
+        settings = Settings()
+        return settings.machines_dir().joinpath(f"{self._name}.yaml")
 
     def save(self) -> None:
-        with open(self.settings_path(), "w") as fp:
+        with open(self.config_path(), "w") as fp:
             yaml.dump({"machine": self._settings}, fp, Dumper=yaml.Dumper)
 
     def check_requirements(self) -> None:
@@ -97,7 +97,7 @@ class Machine(object):
         if self._settings.get("disk-path"):
             if not os.path.exists(self._settings["disk-path"]):
                 raise CommandError(f"File not found: {self._settings['disk-path']}")
-        elif not os.path.exists(self.get_disk_path()):
+        elif not self.get_disk_path().exists():
             raise CommandError(f"File not found: {self.get_disk_path()}")
 
     def raw_disk_must_exists(self) -> None:
@@ -146,12 +146,9 @@ class Machine(object):
         return params
 
     def exec_parameters_disks(self) -> List[str]:
-        if self._settings.get("disk-path"):
-            main_disk_path = self._settings["disk-path"]
-        else:
-            main_disk_path = self.get_disk_path()
+        disk_path = self.get_disk_path()
         params = [
-            "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap"}' % main_disk_path,
+            "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap"}' % disk_path,
             "-blockdev", '{"node-name":"libvirt-3-format","read-only":false,"driver":"qcow2","file":"libvirt-3-storage","backing":null}',
             "-device", "ide-hd,bus=ide.0,drive=libvirt-3-format,id=sata0-0-0,bootindex=1",
         ]
@@ -182,15 +179,28 @@ class Machine(object):
             "-device", f"e1000e,netdev=hostnet0,id=net0,mac={self._settings['mac-address']},bus=pci.6,addr=0x0",
         ]
 
+    def exec_parameters_iso_disk(self, iso_path) -> List[str]:
+        if not iso_path:
+            return [""]
+
+        abs_iso_path = os.path.abspath(iso_path)
+        if not os.path.exists(abs_iso_path):
+            raise CommandError(f"File not found: {abs_iso_path}")
+
+        return [
+            "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-2-storage","auto-read-only":true,"discard":"unmap"}' % abs_iso_path,
+            "-blockdev", '{"node-name":"libvirt-2-format","read-only":true,"driver":"raw","file":"libvirt-2-storage"}',
+            "-device", "ide-cd,bus=ide.1,drive=libvirt-2-format,id=sata0-0-1",
+        ]
+
     def execute(self, iso_path: Union[str, None] = None) -> None:
         self.check_requirements()
 
-        if iso_path is not None:
-            abs_iso_path = os.path.abspath(iso_path)
-            if not os.path.exists(abs_iso_path):
-                raise CommandError(f"File not found: {abs_iso_path}")
-        else:
-            abs_iso_path = ""
+        settings = Settings()
+        if not settings.network_interface():
+            raise CommandError("Target network not configured")
+
+        TapNetwork.add_tap_network(settings.network_interface(), settings.network_ip())
 
         parameters = [
             "-name", f"guest={self._name},debug-threads=on",
@@ -222,13 +232,7 @@ class Machine(object):
         parameters += self.exec_parameters_scream()
         parameters += self.exec_parameters_gpus()
         parameters += self.exec_parameters_network()
-
-        if abs_iso_path:
-            parameters += [
-                "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-2-storage","auto-read-only":true,"discard":"unmap"}' % abs_iso_path,
-                "-blockdev", '{"node-name":"libvirt-2-format","read-only":true,"driver":"raw","file":"libvirt-2-storage"}',
-                "-device", "ide-cd,bus=ide.1,drive=libvirt-2-format,id=sata0-0-1",
-            ]
+        parameters += self.exec_parameters_iso_disk(iso_path)
 
         emulator = EmulatorTool()
         emulator.must_exists()
@@ -262,16 +266,21 @@ class Machine(object):
     def raw_disk_present(self) -> bool:
         return "raw-disk1" in self._settings
 
-    def get_disk_path(self) -> str:
-        disk_dir = os.path.join(VMS_DIR, f"{self._name}-disks")
+    def get_disk_path(self) -> Path:
+        if self._settings.get("disk-path"):
+            if not Path(self._settings["disk-path"]).parent.exists():
+                os.makedirs(Path(self._settings["disk-path"]).parent)
+            return self._settings["disk-path"]
+        settings = Settings()
+        disk_dir = settings.disk_directory().joinpath(f"{self._name}-disks")
         if not os.path.exists(disk_dir):
             os.makedirs(disk_dir)
-        return os.path.join(disk_dir, f"{self._name}.qcow2")
+        return disk_dir.joinpath(f"{self._name}.qcow2")
 
     def create_disk(self) -> None:
         disk_filepath = self.get_disk_path()
 
-        if os.path.exists(disk_filepath):
+        if disk_filepath.exists():
             raise CommandError(f'The machine disk already exists at {disk_filepath}')
 
         disk_size = self._settings["disk-size"]
