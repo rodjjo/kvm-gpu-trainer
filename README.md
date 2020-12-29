@@ -8,8 +8,14 @@ Based in the tutorial: [PCI_passthrough_via_OVMF](https://wiki.archlinux.org/ind
 ## Attention
 
 For while it intend to be supported by arch-linux host only.  
-Early development state project (WIP) (no working release yet).  
+Early development state project (WIP).  
 
+## TODO List
+* Complete code type hints
+* Allow use of non root user launch the virtual machine.
+* Add ubuntu support.
+* Enable dhcp on the bridge network.
+* Add looking glass support.
 
 ## Prepare the machine
 
@@ -25,12 +31,12 @@ Before you use this software:
 
 ## Tested on the system configuration
 
-OS: Arch Linux
-Kernel: x86_64 Linux 5.8.9-arch2-1
-Shell: zsh 5.8
-Resolution: 1920x1080
-DE: GNOME 3.36.4
-Disk: 5.6T / 12T (53%)
-CPU: Intel Core i5-3570 @ 4x 3.8GHz
-GPU: GeForce GTX 1080
-RAM: 24GB dual layer configuration: 8GB + 8GB and 4GB + 4GB
+OS: Arch Linux  
+Kernel: x86_64 Linux 5.8.9-arch2-1  
+Shell: zsh 5.8  
+Resolution: 1920x1080  
+DE: GNOME 3.36.4  
+Disk: 12T
+CPU: Intel Core i5-3570 @ 4x 3.8GHz  
+GPU: GeForce GTX 1080  
+RAM: 24GB dual layer configuration: 8GB + 8GB and 4GB + 4GB  
