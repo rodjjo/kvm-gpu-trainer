@@ -3,9 +3,8 @@ import platform
 import subprocess
 from typing import List, Tuple
 
+from vm_trainer.components.tools import EmulatorTool, IpTablesTool, IpTool
 from vm_trainer.exceptions import CommandError
-
-from .tools import EmulatorTool, IpTablesTool, IpTool
 
 StringList = List[str]
 ToolChecklist = List[Tuple[str, str, str]]

@@ -1,1 +1,2 @@
-from . import dependencies, device_info, machines, network  # noqa
+from vm_trainer.management import (dependencies, device_info, machines,  # noqa
+                                   network, settings)
