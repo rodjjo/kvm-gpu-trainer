@@ -12,7 +12,7 @@ def settings_set_disk_dir(path: str) -> None:
     settings.save()
 
 
-@cli.command(help="Set the main network interface to connect the bridge with")
+@cli.command(help="Set the main network interface")
 @click.option("--name", required=True, type=str, help="The interface name")
 def settings_set_network_interface(name: str) -> None:
     settings = Settings()
@@ -20,7 +20,7 @@ def settings_set_network_interface(name: str) -> None:
     settings.save()
 
 
-@cli.command(help="Set the main network interface to connect the bridge with")
+@cli.command(help="Show the main network interface")
 def settings_show_network_interface() -> None:
     settings = Settings()
     click.echo(settings.network_interface())
