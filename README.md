@@ -11,7 +11,6 @@ For while it intend to be supported by arch-linux host only.
 Early development state project (WIP).  
 
 ## TODO List
-* Complete code type hints
 * Allow use of non root user launch the virtual machine.
 * Add ubuntu support.
 * Enable dhcp on the bridge network.
