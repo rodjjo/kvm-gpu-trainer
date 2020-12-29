@@ -103,7 +103,7 @@ class Machine(object):
 
     def raw_disk_must_exists(self) -> None:
         if self._settings.get("raw-disk1"):
-            if Path(self._settings["raw-disk1"]).exists():
+            if not Path(self._settings["raw-disk1"]).exists():
                 raise CommandError(f"Disk device not found: {self._settings['raw-disk1']}")
 
     def exec_parameters_pci_slots(self) -> List[str]:
