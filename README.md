@@ -26,6 +26,7 @@ Before you install/use this software:
   Set intel_iommu=on (for intel processors) or amd_iommu=on (for amd ones).  
   You can add iommu=pt to prevent linux from touching devices that cant pass through.  
   More information here [Edit kernel parameters](https://wiki.archlinux.org/index.php/Kernel_parameters)
+* You need to have two monitor or an monitor with 2 inputs (for the virtual machine and the host)
 
 ## Installation
 
