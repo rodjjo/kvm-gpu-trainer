@@ -14,7 +14,7 @@ class TapNetwork(object):
     PHYSICAL_INTERFACE_RE = re.compile(r"devices\/pci[0-9a-f]{4}:")
 
     @staticmethod
-    def get_physical_interfaces():
+    def get_physical_interfaces() -> Iterator[str]:
         logical_ones = list(TapNetwork.get_logical_interfaces())
         for interface in run_read_output(["ip", "-o", "link", "show"]):
             match = TapNetwork.IP_LINK_NAME_RE.match(interface)

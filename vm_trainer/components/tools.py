@@ -67,7 +67,7 @@ class ToolBase(object):
         if not self.exists():
             raise CommandError(f"The tool {self.TOOL_NAME} is not present in your system")
 
-    def alread_installed_message(self):
+    def alread_installed_message(self) -> str:
         return f"The tool {self.TOOL_NAME} is already installed"
 
 
@@ -220,7 +220,7 @@ class IpTablesTool(ToolBase):
 class GitTool(ToolBase):
     TOOL_NAME = "git"
 
-    def install(self, show_message: bool = True):
+    def install(self, show_message: bool = True) -> None:
         if self.exists(False):
             return
         PackageTool().install_git()

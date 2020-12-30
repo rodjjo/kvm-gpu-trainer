@@ -23,7 +23,7 @@ repos:
     rev: 5.2.0
     hooks:
     - id: isort
-      args: ['--diff']
+#      args: ['--diff']
 
 -   repo: https://gitlab.com/pycqa/flake8
     rev: 3.8.3
