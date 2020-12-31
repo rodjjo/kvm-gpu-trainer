@@ -20,9 +20,8 @@ class DependencyManager:
     OVMF_BIOS_FILEPATH = "/usr/share/edk2-ovmf/x64/OVMF_CODE.fd"
 
     @staticmethod
-    def is_compatible_distro() -> bool:
-        system_version = platform.release()
-        return "arch2" in system_version or "ubuntu" in system_version
+    def id_distro_compatible() -> bool:
+        return "arch2" in platform.release() or "ubuntu" in platform.version().lower()
 
     @staticmethod
     def is_processor_compatible() -> bool:
@@ -86,7 +85,7 @@ class DependencyManager:
 
     @staticmethod
     def check_all() -> None:
-        if not DependencyManager.is_compatible_distro():
+        if not DependencyManager.id_distro_compatible():
             raise CommandError("vm_trainer does not support your linux distribution (try using ubuntu or arch-linux)")
         if not DependencyManager.is_processor_compatible():
             raise CommandError("Your pocessor does not have virtualization capabilities")
