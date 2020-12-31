@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+from pathlib import Path
 from typing import Dict, Iterator, List
 
 AUDIO_VIDEO_VENDORS_RE = ({"audio": "NVIDIA Corporation", "video": "NVIDIA Corporation.*GeForce"},)
@@ -111,7 +112,7 @@ def gpus_from_iommu_devices() -> List[GPU]:
     return gpus
 
 
-def create_qcow_disk(disk_filepath: str, disk_size: int) -> Iterator[str]:
+def create_qcow_disk(disk_filepath: Path, disk_size: int) -> Iterator[str]:
     for line in run_read_output([
             "qemu-img", "create", "-f", "qcow2", str(disk_filepath), f"{disk_size}M"
     ]):
