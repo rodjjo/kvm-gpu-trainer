@@ -140,6 +140,17 @@ class AptGetTool(PackageManagementTool):
     def update(self) -> None:
         self.execute_as_super(["update"])
 
+    def install_scream(self) -> None:
+        raise CommandError("Scream setup on ubuntu not implemented yet")
+
+    def install_git(self) -> None:
+        self.update()
+        self.execute_as_super(["install", "git"])
+
+    def install_build_essential(self) -> None:
+        self.update()
+        self.execute_as_super(["install", "build-essential"])
+
     def install_qemu_kvm(self) -> None:
         self.update()
         self.execute_as_super(["install", "qemu-kvm", "libvirt-daemon-system", "libvirt-clients", "bridge-utils"])
