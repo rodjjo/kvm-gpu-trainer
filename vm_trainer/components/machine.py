@@ -206,7 +206,8 @@ class Machine(object):
 
         parameters = [
             "-name", f"guest={self._name},debug-threads=on",
-            "-machine", 'pc-q35-5.1,accel=kvm,usb=off,vmport=off,dump-guest-core=off,kernel_irqchip=on',
+            # "-machine", 'pc-q35-5.1,accel=kvm,usb=off,vmport=off,dump-guest-core=off,kernel_irqchip=on',
+            "-machine", 'q35,accel=kvm,usb=off,vmport=off,dump-guest-core=off,kernel_irqchip=on',
             "-bios", self.BIOS_PATH,
             "-cpu", "host,migratable=on,hv-time,hv-relaxed,hv-vapic,hv-spinlocks=0x4000,hv-vpindex,hv-runtime,hv-synic,hv-stimer,hv-reset,hv-vendor-id=441863197303,hv-frequencies,hv-reenlightenment,hv-tlbflush,kvm=off",
             "-m", str(self._settings["memory"]),
@@ -282,7 +283,7 @@ class Machine(object):
     def create_disk(self) -> None:
         disk_filepath = self.get_disk_path()
 
-        if disk_filepath.exists():
+        if os.path.exists(disk_filepath):
             raise CommandError(f'The machine disk already exists at {disk_filepath}')
 
         disk_size = self._settings["disk-size"]
