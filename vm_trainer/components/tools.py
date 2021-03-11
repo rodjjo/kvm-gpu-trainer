@@ -225,6 +225,9 @@ class EmulatorTool(ToolBase):
     TOOL_NAME = "qemu-system-x86_64"
     DO_NOTHING_PARAMETER = "-version"
 
+    def __init__(self) -> None:
+        self.TOOL_NAME = Settings().qemu_binary_path()
+
     def install(self, show_message: bool = True) -> None:
         if self.exists(show_message):
             return

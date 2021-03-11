@@ -20,6 +20,9 @@ class Settings():
     def network_interface(self) -> str:
         return self._settings.get("network-interface", "")
 
+    def qemu_binary_path(self) -> str:
+        return self._settings.get("qemu-bin-path", "qemu-system-x86_64")
+
     def temp_dir(self) -> Path:
         dirpath = self.settings_dir().joinpath('temp')
         if not dirpath.exists():
@@ -51,6 +54,9 @@ class Settings():
 
     def set_network_interface(self, name: str) -> None:
         self._settings["network-interface"] = name
+
+    def set_qemu_binary_path(self, path: str) -> None:
+        self._settings["qemu-bin-path"] = path
 
     def load(self) -> None:
         if not self.settings_path().exists():
