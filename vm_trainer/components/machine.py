@@ -282,7 +282,7 @@ class Machine(object):
     def create_disk(self) -> None:
         disk_filepath = self.get_disk_path()
 
-        if disk_filepath.exists():
+        if os.path.exists(disk_filepath):
             raise CommandError(f'The machine disk already exists at {disk_filepath}')
 
         disk_size = self._settings["disk-size"]

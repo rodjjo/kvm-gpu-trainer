@@ -88,7 +88,7 @@ class PackageManagementTool(ToolBase):
         raise NotImplementedError()
 
     def configure_user_access(self) -> None:
-        self.execute_as_super(["sudo", "usermod", "-aG", "libvirt,libvirtd,kvm", getuser()])
+        self.execute_as_super(["usermod", "--append", "--groups", "libvirt,libvirtd,kvm", getuser()])
 
     def enable_virtd(self) -> None:
         self.execute_application(["sudo", "systemctl", "enable", "libvirtd.service"])
@@ -96,6 +96,15 @@ class PackageManagementTool(ToolBase):
 
     def virtd_check_status(self) -> None:
         self.execute_application(["sudo", "systemctl", "--no-pager", "status", "libvirtd.service"])
+
+    def create_scream_service(self) -> None:
+        scream_service_dir = Path.expanduser("~/.config/systemd/user")
+        self.execute(['mkdir', '-p', scream_service_dir])
+        scream_service_path = os.path.join(scream_service_dir, "scream-ivshmem-pulse.service")
+        with open(scream_service_path, "w") as fp:
+            fp.write('\n'.join(SCREAM_SERVICE_CONFIG))
+        self.execute_application(["systemctl", "enable", "--user", "scream-ivshmem-pulse"])
+        self.execute_application(["systemctl", "start", "--user", "scream-ivshmem-pulse"])
 
 
 class PacmanTool(PackageManagementTool):
@@ -119,11 +128,7 @@ class PacmanTool(PackageManagementTool):
         binary_path = os.path.join(clone_dirpath, "pkg/scream/usr/bin/scream")
         self.execute_application(['sudo', 'cp', binary_path, "/usr/bin/scream"])
 
-        scream_service_path = Path.expanduser(Path("~/.config/systemd/user/scream-ivshmem-pulse.service"))
-        with open(scream_service_path, "w") as fp:
-            fp.writelines(SCREAM_SERVICE_CONFIG)
-        self.execute_application(["systemctl", "enable", "--user", "scream-ivshmem-pulse"])
-        self.execute_application(["systemctl", "start", "--user", "scream-ivshmem-pulse"])
+        self.create_scream_service()
 
     def install_build_essential(self) -> None:
         self.update()
@@ -141,7 +146,14 @@ class AptGetTool(PackageManagementTool):
         self.execute_as_super(["update"])
 
     def install_scream(self) -> None:
-        raise CommandError("Scream setup on ubuntu not implemented yet")
+        clone_dirpath = GitTool().clone('https://github.com/duncanthrax/scream.git', 'scream')
+        receive_dir = os.path.join(clone_dirpath, 'Receivers/unix')
+
+        self.execute_application(['cmake', '.'], cwd=receive_dir)
+        self.execute_application(['cmake', '--build', '.'], cwd=os.path.join(clone_dirpath, 'Receivers/unix'))
+        self.execute_application(['sudo', 'cp', os.path.join(receive_dir, 'scream'), '/usr/bin/scream'])
+
+        self.create_scream_service()
 
     def install_git(self) -> None:
         self.update()
@@ -149,7 +161,7 @@ class AptGetTool(PackageManagementTool):
 
     def install_build_essential(self) -> None:
         self.update()
-        self.execute_as_super(["install", "build-essential"])
+        self.execute_as_super(["install", "build-essential", "cmake"])
 
     def install_qemu_kvm(self) -> None:
         self.update()
@@ -245,6 +257,8 @@ class GitTool(ToolBase):
             raise CommandError("The git tool is required to install scream.")
         settings = Settings()
         clone_path = os.path.join(settings.temp_dir(), dir_name)
+        if os.path.exists(clone_path):
+            return clone_path
         self.execute(['clone', url, clone_path])
         return clone_path
 
