@@ -162,7 +162,7 @@ class AptGetTool(PackageManagementTool):
 
     def install_build_essential(self) -> None:
         self.update()
-        self.execute_as_super(["install", "build-essential", "cmake", "libpulse-dev"])
+        self.execute_as_super(["install", "build-essential", "cmake"])
 
     def install_qemu_kvm(self) -> None:
         self.update()
