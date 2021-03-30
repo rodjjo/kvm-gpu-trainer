@@ -118,6 +118,8 @@ class Machine(object):
             "-device", "pcie-root-port,port=0x17,chassis=8,id=pci.8,bus=pcie.0,addr=0x2.0x7",
             "-device", "pcie-root-port,port=0x18,chassis=9,id=pci.9,bus=pcie.0,addr=0x3.0x1",
             "-device", "pcie-root-port,port=0x19,chassis=10,id=pci.10,bus=pcie.0,addr=0x3.0x2",
+            "-device", "pcie-root-port,port=0x20,chassis=11,id=pci.12,bus=pcie.0,addr=0x3.0x3",
+            "-device", "pcie-root-port,port=0x21,chassis=12,id=pci.13,bus=pcie.0,addr=0x3.0x4",
             "-device", "pcie-pci-bridge,id=pci.11,bus=pci.1,addr=0x0",
         ]
 
@@ -126,10 +128,12 @@ class Machine(object):
         if self._settings.get("evdev-mouse"):
             params += [
                 "-object", f"input-linux,id=mouse1,evdev={self._settings['evdev-mouse']}",
+                "-device", "virtio-mouse-pci,id=input0,bus=pci.12,addr=0x4",
             ]
         if self._settings.get("evdev-keyboard"):
             params += [
                 "-object", f"input-linux,id=kbd1,evdev={self._settings['evdev-keyboard']},grab_all=on,repeat=on",
+                "-device", "virtio-keyboard-pci,id=input1,bus=pci.12,addr=0x5",
             ]
         return params
 

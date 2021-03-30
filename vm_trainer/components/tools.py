@@ -47,7 +47,8 @@ class ToolBase(object):
         self.execute_application([self.TOOL_NAME] + parameters)
 
     def execute_as_super(self, parameters: CommandArgs) -> None:
-        self.execute_application(["sudo", self.TOOL_NAME] + parameters)
+        # self.execute_application(["sudo", "chrt", "-r", "1", "taskset", "-c", "0-3", self.TOOL_NAME] + parameters)
+        self.execute_application(["sudo", "taskset", "-c", "0-3", self.TOOL_NAME] + parameters)
 
     def install(self, show_message: bool = False) -> None:
         raise NotImplementedError()
