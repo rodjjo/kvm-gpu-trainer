@@ -21,7 +21,10 @@ class DependencyManager:
 
     @staticmethod
     def id_distro_compatible() -> bool:
-        return "arch2" in platform.release() or "ubuntu" in platform.version().lower()
+        if "arch2" in platform.release():
+            return True
+        with open("/etc/os-release", "r") as fp:
+            return "ubuntu" in fp.read()
 
     @staticmethod
     def is_processor_compatible() -> bool:

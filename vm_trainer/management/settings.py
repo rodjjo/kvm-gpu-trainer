@@ -46,3 +46,10 @@ def settings_set_ip_address(ip: str) -> None:
 def settings_show_ip_address() -> None:
     settings = Settings()
     click.echo(settings.network_ip())
+
+@cli.command(help="Set the qemu binary location")
+@click.option("--path", required=True, type=str, help="Path to qemu-system-x86_64 binary")
+def settings_set_qemu_path(path: str) -> None:
+    settings = Settings()
+    settings.set_qemu_binary_path(path)
+    settings.save()
