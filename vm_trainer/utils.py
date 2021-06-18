@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Iterator, List
 
-AUDIO_VIDEO_VENDORS_RE = ({"audio": "NVIDIA Corporation", "video": "NVIDIA Corporation.*GeForce"},)
+AUDIO_VIDEO_VENDORS_RE = ({"audio": "(Audio device.*NVIDIA|NVIDIA Corporation)", "video": "(.*VGA.*NVIDIA|.*NVIDIA.*GeForce)"},)
 DEVICE_INFO_RE = "([0-9]{2}:[0-9]{2}\\.[0-9])[^:]*:(.*)\\[([0-9a-f]{4}):([0-9a-f]{4})\\].*"  # parse a string like: 01:00.0 VGA compatible controller [0300]: NVIDIA Corporation GP104 [GeForce GTX 1080] [10de:1b80] (rev a1)
 
 
@@ -45,9 +45,9 @@ class GPU:
         audio_address = ""
         video_address = ""
         if audio_match:
-            audio_vendor = audio_match.group(2).strip()
+            audio_vendor = audio_match.group(0).strip()
             audio_address = f"0000:{audio_match.group(1)}"
-        video_vendor = video_match.group(2).strip()
+        video_vendor = video_match.group(0).strip()
         video_address = f"0000:{video_match.group(1)}"
         return cls(video_vendor, audio_vendor, video_address, audio_address)
 
@@ -67,7 +67,7 @@ def run_read_output(parameters: List[str], shell: bool = False) -> Iterator[str]
 def get_IOMMU_information() -> List[str]:
     return list(run_read_output([
         "sh", "-c",
-        "dmesg | grep -i -e DMAR -e IOMMU"
+        "sudo dmesg | grep -i -e DMAR -e IOMMU"
     ]))
 
 
@@ -79,34 +79,39 @@ def get_iommu_devices() -> Iterator[str]:
                 yield line
 
 
-def search_gpu_device(devices: List[str], vendor: Dict) -> Dict:
+def search_gpu_devices(devices: List[str], vendor: Dict) -> Dict:
     audio = ""
     video = ""
     video_re = re.compile(vendor["video"])
     audio_re = re.compile(vendor["audio"])
-    start_str = ""
+    
+    gpus = {"video": {}, "audio": {}}
+
     for device in devices:
         if "vga compatible controller" in device.lower():
-            match = video_re.search(device)
-            if match and (device.startswith(start_str) or not start_str):
-                start_str = device[0:6]
-                video = device
-
-        if "audio device" in device.lower():
-            match = audio_re.search(device)
-            if match and (device.startswith(start_str) or not start_str):
-                start_str = device[0:6]
-                audio = device
-
-    return {"video": video, "audio": audio}
+            if  video_re.search(device):
+                gpus["video"][device[0:6]] = device
+        elif "audio device" in device.lower():
+            if  audio_re.search(device):
+                gpus["audio"][device[0:6]] = device
+    
+    result = []
+    for gpu in gpus["video"].keys():
+        if gpu in gpus["audio"].keys():
+            result.append({
+                "video": gpus["video"][gpu],
+                "audio": gpus["audio"][gpu],
+            })
+    
+    return result
 
 
 def gpus_from_iommu_devices() -> List[GPU]:
     devices = list(get_iommu_devices())
     gpus = []
     for vendor in AUDIO_VIDEO_VENDORS_RE:
-        vendor_lines = search_gpu_device(devices, vendor)
-        if vendor_lines["video"]:
+        gpu_devices = search_gpu_devices(devices, vendor)
+        for vendor_lines in gpu_devices:
             gpus.append(GPU.from_vendor(vendor_lines))
             devices = [d for d in devices if d not in vendor_lines["video"] and d not in vendor_lines["audio"]]
     return gpus

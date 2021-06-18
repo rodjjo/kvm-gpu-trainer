@@ -89,7 +89,7 @@ class PackageManagementTool(ToolBase):
         raise NotImplementedError()
 
     def configure_user_access(self) -> None:
-        self.execute_as_super(["usermod", "--append", "--groups", "libvirt,libvirtd,kvm", getuser()])
+        self.execute_application(["sudo", "usermod", "--append", "--groups", "libvirt,libvirtd,kvm", getuser()])
 
     def enable_virtd(self) -> None:
         self.execute_application(["sudo", "systemctl", "enable", "libvirtd.service"])
