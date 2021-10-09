@@ -147,6 +147,9 @@ class AptGetTool(PackageManagementTool):
         self.execute_as_super(["update"])
 
     def install_scream(self) -> None:
+        self.update()
+        self.execute_as_super(["install", "libpulse-dev"])
+
         clone_dirpath = GitTool().clone('https://github.com/duncanthrax/scream.git', 'scream')
         receive_dir = os.path.join(clone_dirpath, 'Receivers/unix')
 
