@@ -89,7 +89,7 @@ class PackageManagementTool(ToolBase):
         raise NotImplementedError()
 
     def configure_user_access(self) -> None:
-        self.execute_as_super(["usermod", "--append", "--groups", "libvirt,libvirtd,kvm", getuser()])
+        self.execute_application(["sudo", "usermod", "--append", "--groups", "libvirt,libvirtd,kvm", getuser()])
 
     def enable_virtd(self) -> None:
         self.execute_application(["sudo", "systemctl", "enable", "libvirtd.service"])
@@ -99,8 +99,8 @@ class PackageManagementTool(ToolBase):
         self.execute_application(["sudo", "systemctl", "--no-pager", "status", "libvirtd.service"])
 
     def create_scream_service(self) -> None:
-        scream_service_dir = Path.expanduser("~/.config/systemd/user")
-        self.execute(['mkdir', '-p', scream_service_dir])
+        scream_service_dir = Path("~/.config/systemd/user").expanduser()
+        self.execute_application(['mkdir', '-p', scream_service_dir])
         scream_service_path = os.path.join(scream_service_dir, "scream-ivshmem-pulse.service")
         with open(scream_service_path, "w") as fp:
             fp.write('\n'.join(SCREAM_SERVICE_CONFIG))
@@ -124,7 +124,7 @@ class PacmanTool(PackageManagementTool):
 
     def install_scream(self) -> None:
         clone_dirpath = GitTool().clone('https://aur.archlinux.org/scream.git', 'scream')
-        self.execute_application(['makepkg'], cwd=clone_dirpath)
+        self.execute_application(['makepkg', "-f"], cwd=clone_dirpath)
 
         binary_path = os.path.join(clone_dirpath, "pkg/scream/usr/bin/scream")
         self.execute_application(['sudo', 'cp', binary_path, "/usr/bin/scream"])
@@ -147,6 +147,9 @@ class AptGetTool(PackageManagementTool):
         self.execute_as_super(["update"])
 
     def install_scream(self) -> None:
+        self.update()
+        self.execute_as_super(["install", "libpulse-dev"])
+
         clone_dirpath = GitTool().clone('https://github.com/duncanthrax/scream.git', 'scream')
         receive_dir = os.path.join(clone_dirpath, 'Receivers/unix')
 

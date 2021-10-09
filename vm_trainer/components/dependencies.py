@@ -21,10 +21,12 @@ class DependencyManager:
 
     @staticmethod
     def id_distro_compatible() -> bool:
-        if "arch2" in platform.release():
+        p = platform.release().lower()
+        if "arch2" in p  or "manjaro" in p:
             return True
         with open("/etc/os-release", "r") as fp:
-            return "ubuntu" in fp.read()
+            contents = fp.read()
+            return "ubuntu" in contents or "manjaro" in contents
 
     @staticmethod
     def is_processor_compatible() -> bool:
