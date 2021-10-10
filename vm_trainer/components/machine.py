@@ -155,9 +155,10 @@ class Machine(object):
     def exec_parameters_disks(self) -> List[str]:
         disk_path = self.get_disk_path()
         params = [
-            "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap"}' % disk_path,
-            "-blockdev", '{"node-name":"libvirt-3-format","read-only":false,"driver":"qcow2","file":"libvirt-3-storage","backing":null}',
-            "-device", "ide-hd,bus=ide.0,drive=libvirt-3-format,id=sata0-0-0,bootindex=1",
+            # '-object', 'iothread,id=iothread0',
+             "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap","aio":"threads"}' % disk_path,
+             "-blockdev", '{"node-name":"libvirt-3-format","read-only":false,"driver":"qcow2","file":"libvirt-3-storage","backing":null}',
+             "-device", "ide-hd,bus=ide.0,drive=libvirt-3-format,id=sata0-0-0,bootindex=1",
         ]
         for disk_number in range(1, 3):
             name = f"raw-disk{disk_number}"
@@ -170,7 +171,7 @@ class Machine(object):
                     "-blockdev", '{"node-name":"libvirt-%s-format","read-only":false,"cache":{"direct":true,"no-flush":false},"driver":"raw","file":"libvirt-%s-storage"}' % (
                         disk_number, disk_number
                     ),
-                    "-device", f"virtio-blk-pci,bus=pci.{6 + disk_number},addr=0x0,drive=libvirt-{disk_number}-format,id=virtio-disk2,write-cache=on",
+                    "-device", f"virtio-blk-pci,bus=pci.{6 + disk_number},addr=0x0,drive=libvirt-{disk_number}-format,id=virtio-disk2,write-cache=on,iothread=iothread0",
                 ]
         return params
 
