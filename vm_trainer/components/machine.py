@@ -134,7 +134,7 @@ class Machine(object):
         if self._settings.get("evdev-keyboard"):
             params += [
                 "-object", f"input-linux,id=kbd1,evdev={self._settings['evdev-keyboard']},grab_all=on,repeat=on",
-                "-device", "virtio-keyboard-pci,id=input1,bus=pci.12,addr=0x5",
+                "-device", "virtio-keyboard-pci,id=input1,serial=virtio-keyboard",
             ]
         return params
 
