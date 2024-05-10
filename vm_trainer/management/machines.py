@@ -63,6 +63,16 @@ def machine_set_memory(name: str, memory: int) -> None:
     machine.save()
 
 
+@cli.command(help="Pass throug a USB device")
+@click.option("--name", required=True, help="The name of the virtual machine")
+@click.option("--address", required=True, type=str)
+def machine_set_usb_device(name: str, address: str) -> None:
+    machine = Machine(name)
+    machine.must_exists()
+    machine.set_usb_device(address)
+    machine.save()
+
+
 @cli.command(help="List existing machine names")
 def machine_list() -> None:
     settings = Settings()

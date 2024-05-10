@@ -127,6 +127,13 @@ DHCP (automatic ip configuration) support is at the TODO list.
 
 Take a look at [click-here](https://github.com/duncanthrax/scream)
 
+## Configure persistent evdev
+
+In order to plugin and play evdev:
+
+https://github.com/aiberia/persistent-evdev/blob/master/README.md
+
+
 ## Tested on the system configuration
 
 OS: Arch Linux  

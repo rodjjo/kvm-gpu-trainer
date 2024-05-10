@@ -49,6 +49,7 @@ class Machine(object):
             "memory": 512,
             "disk-size": 20000,
             "custom-disk": None,
+            "usb-device": ""
         }
         if self.exists():
             self.load_settings()
@@ -107,6 +108,9 @@ class Machine(object):
             if not Path(self._settings["raw-disk1"]).exists():
                 raise CommandError(f"Disk device not found: {self._settings['raw-disk1']}")
 
+    def set_usb_device(self, address: str) -> None:
+        self._settings["usb-device"] = address
+
     def exec_parameters_pci_slots(self) -> List[str]:
         return [
             "-device", "pcie-root-port,port=0x10,chassis=1,id=pci.1,bus=pcie.0,multifunction=on,addr=0x2",
@@ -155,7 +159,7 @@ class Machine(object):
     def exec_parameters_disks(self) -> List[str]:
         disk_path = self.get_disk_path()
         params = [
-            # '-object', 'iothread,id=iothread0',
+             '-object', 'iothread,id=iothread0',
              "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap","aio":"threads"}' % disk_path,
              "-blockdev", '{"node-name":"libvirt-3-format","read-only":false,"driver":"qcow2","file":"libvirt-3-storage","backing":null}',
              "-device", "ide-hd,bus=ide.0,drive=libvirt-3-format,id=sata0-0-0,bootindex=1",
@@ -171,7 +175,7 @@ class Machine(object):
                     "-blockdev", '{"node-name":"libvirt-%s-format","read-only":false,"cache":{"direct":true,"no-flush":false},"driver":"raw","file":"libvirt-%s-storage"}' % (
                         disk_number, disk_number
                     ),
-                    "-device", f"virtio-blk-pci,bus=pci.{6 + disk_number},addr=0x0,drive=libvirt-{disk_number}-format,id=virtio-disk2,write-cache=on,iothread=iothread0",
+                    "-device", f"virtio-blk-pci,bus=pci.{6 + disk_number},addr=0x0,drive=libvirt-{disk_number}-format,id=virtio-disk{1 + disk_number},write-cache=on,iothread=iothread0",
                 ]
         return params
 
@@ -201,6 +205,15 @@ class Machine(object):
             "-device", "ide-cd,bus=ide.1,drive=libvirt-2-format,id=sata0-0-1",
         ]
 
+    def exec_parameters_usb_device(self) -> List[str]:
+        device = self._settings["usb-device"]
+        if not device or ':' not in device:
+            return []
+        device = device.split(":")
+        return [
+            "-usb", "-device", f"usb-host,vendorid={device[0]},productid={device[1]}",
+        ]
+
     def execute(self, iso_path: Union[str, None] = None) -> None:
         self.check_requirements()
 
@@ -213,10 +226,10 @@ class Machine(object):
         parameters = [
             "-name", f"guest={self._name},debug-threads=on",
             # "-machine", 'pc-q35-5.1,accel=kvm,usb=off,vmport=off,dump-guest-core=off,kernel_irqchip=on',
-            "-machine", 'q35,accel=kvm,usb=off,vmport=off,dump-guest-core=off,kernel_irqchip=on',
+            "-machine", 'q35,accel=kvm,vmport=off,dump-guest-core=off,kernel_irqchip=on,hpet=off',
             "-bios", self.BIOS_PATH,
             "-cpu", "host,migratable=on,hv-time,hv-relaxed,hv-vapic,hv-spinlocks=0x4000,hv-vpindex,hv-runtime,hv-synic,hv-stimer,hv-reset,hv-vendor-id=441863197303,hv-frequencies,hv-reenlightenment,hv-tlbflush,kvm=off",
-            "-m", str(self._settings["memory"]),
+            "-m", str(self._settings["memory"]), 
             "-overcommit",
             "mem-lock=off",
             "-smp", f"{self._settings['cpus'] * self._settings.get('cpus-threads', 1)},sockets=1,dies=1,cores={self._settings['cpus']},threads={self._settings.get('cpus-threads', 1)}",
@@ -225,7 +238,7 @@ class Machine(object):
             "-nodefaults",
             "-rtc", "base=localtime,driftfix=slew",
             "-global", "kvm-pit.lost_tick_policy=delay",
-            "-no-hpet",
+            #"-no-hpet",
             "-global", "ICH9-LPC.disable_s3=1",
             "-global", "ICH9-LPC.disable_s4=1",
             # -serial mon:stdio -append 'console=ttyS0'   # for serial redirection
@@ -242,9 +255,16 @@ class Machine(object):
         parameters += self.exec_parameters_gpus()
         parameters += self.exec_parameters_network()
         parameters += self.exec_parameters_iso_disk(iso_path)
+        parameters += self.exec_parameters_usb_device()
 
         emulator = EmulatorTool()
         emulator.must_exists()
+        try:
+            emulator.execute_application([
+                'sudo', 'sysctl', 'net.ipv4.ip_forward=1'
+            ])
+        except:
+            pass
         emulator.execute_as_super(parameters)
 
     def set_cpus(self, cpu_count: int) -> None:

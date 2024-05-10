@@ -2,7 +2,7 @@ import os
 import subprocess
 from getpass import getuser
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Optional
 
 import click
 
@@ -123,7 +123,7 @@ class PacmanTool(PackageManagementTool):
         self.virtd_check_status()
 
     def install_scream(self) -> None:
-        clone_dirpath = GitTool().clone('https://aur.archlinux.org/scream.git', 'scream')
+        clone_dirpath = GitTool().clone('https://github.com/duncanthrax/scream.git', 'scream', tag='3.1')
         self.execute_application(['makepkg', "-f"], cwd=clone_dirpath)
 
         binary_path = os.path.join(clone_dirpath, "pkg/scream/usr/bin/scream")
@@ -242,6 +242,15 @@ class IpTablesTool(ToolBase):
     TOOL_NAME = "iptables"
 
     def create_nat_routing(self, bridge_interface: str, target_interface: str) -> None:
+        for command in [
+            ["-t", "nat", "-D", "POSTROUTING", "-o", target_interface, "-j", "MASQUERADE"],
+            ["-D", "FORWARD", "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"],
+            ["-D", "FORWARD", "-i", bridge_interface, "-o", target_interface, "-j", "ACCEPT"]
+        ]:
+            try:
+                self.execute_as_super(command)
+            except:
+                pass
         self.execute_as_super(["-t", "nat", "-A", "POSTROUTING", "-o", target_interface, "-j", "MASQUERADE"])
         self.execute_as_super(["-A", "FORWARD", "-m", "conntrack", "--ctstate", "RELATED,ESTABLISHED", "-j", "ACCEPT"])
         self.execute_as_super(["-A", "FORWARD", "-i", bridge_interface, "-o", target_interface, "-j", "ACCEPT"])
@@ -257,7 +266,7 @@ class GitTool(ToolBase):
         if not self.exists(False):
             raise CommandError("Could not install git tool")
 
-    def clone(self, url: str, dir_name: str) -> str:
+    def clone(self, url: str, dir_name: str, tag: Optional[str]) -> str:
         if not self.exists(False):
             PackageTool().install_git()
         if not self.exists(False):
@@ -266,7 +275,10 @@ class GitTool(ToolBase):
         clone_path = os.path.join(settings.temp_dir(), dir_name)
         if os.path.exists(clone_path):
             return clone_path
-        self.execute(['clone', url, clone_path])
+        if tag:
+            self.execute(['clone', '--branch', tag, '--single-branch', url, clone_path])
+        else:
+            self.execute(['clone', url, clone_path])
         return clone_path
 
 
