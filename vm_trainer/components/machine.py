@@ -15,6 +15,9 @@ from vm_trainer.settings import Settings
 from vm_trainer.utils import create_qcow_disk, gpus_from_iommu_devices
 
 
+CURRENT_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+BIOS_FILE_PATH = os.path.join(CURRENT_MODULE_DIR, "..", "bios", "OVMF_CODE.fd")
+
 def get_random_mac() -> str:
     random_sufix = (
         random.randint(0, 255),
@@ -35,7 +38,7 @@ def select_something(message: str, options: List[str]) -> int:
 
 
 class Machine(object):
-    BIOS_PATH = "/usr/share/edk2-ovmf/x64/OVMF_CODE.fd"
+    BIOS_PATH = BIOS_FILE_PATH
 
     def __init__(self, name: str) -> None:
         self._name: str = name
@@ -229,7 +232,7 @@ class Machine(object):
             "-machine", 'q35,accel=kvm,vmport=off,dump-guest-core=off,kernel_irqchip=on,hpet=off',
             "-bios", self.BIOS_PATH,
             "-cpu", "host,migratable=on,hv-time,hv-relaxed,hv-vapic,hv-spinlocks=0x4000,hv-vpindex,hv-runtime,hv-synic,hv-stimer,hv-reset,hv-vendor-id=441863197303,hv-frequencies,hv-reenlightenment,hv-tlbflush,kvm=off",
-            "-m", str(self._settings["memory"]), 
+            "-m", str(self._settings["memory"]),
             "-overcommit",
             "mem-lock=off",
             "-smp", f"{self._settings['cpus'] * self._settings.get('cpus-threads', 1)},sockets=1,dies=1,cores={self._settings['cpus']},threads={self._settings.get('cpus-threads', 1)}",

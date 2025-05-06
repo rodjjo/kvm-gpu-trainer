@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "vm-trainer"
+version = "1.0.0"
+description = "a qemu manager for gpu passthrough"
+authors = ["Rodrigo Antonio de Araujo <rodjjo@gmail.com>"]
+
+[tool.poetry.depedencies]
+python = "^3.10"
+click = "^7.1.2"
+pyaml = "^20.4.0"
+pyyaml  = "^5.3.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.package]
+include = [
+     { path =  "vm_trainer/bios", format = "dir" }
+]
+
+[tool.poetry.scripts]
+vm-trainer = "vm_trainer.cli:main"
