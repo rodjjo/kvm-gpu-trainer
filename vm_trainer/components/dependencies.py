@@ -10,6 +10,9 @@ StringList = List[str]
 ToolChecklist = List[Tuple[str, str, str]]
 PathChecklist = List[Tuple[str, str]]
 
+CURRENT_MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+BIOS_FILE_PATH = os.path.join(CURRENT_MODULE_DIR, "..", "bios", "OVMF_CODE.fd")
+
 
 class DependencyManager:
     COMPATIBLE_DISTROS = ('archlinux',)
@@ -17,7 +20,7 @@ class DependencyManager:
     IP_TOOL = IpTool.TOOL_NAME
     IP_TABLES_TOOL = IpTablesTool.TOOL_NAME
     IOMMU_GROUPS_DIRPATH = "/sys/kernel/iommu_groups"
-    OVMF_BIOS_FILEPATH = "/usr/share/edk2-ovmf/x64/OVMF_CODE.fd"
+    OVMF_BIOS_FILEPATH = BIOS_FILE_PATH
 
     @staticmethod
     def id_distro_compatible() -> bool:
