@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "a qemu manager for gpu passthrough"
 authors = ["Rodrigo Antonio de Araujo <rodjjo@gmail.com>"]
 
-[tool.poetry.depedencies]
+[tool.poetry.dependencies]
 python = "^3.10"
 click = "^8.1.7"
 pyaml = "^20.4.0"
