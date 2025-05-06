@@ -147,7 +147,9 @@ class Machine(object):
 
     def exec_parameters_gpus(self) -> List[str]:
         if not self._settings.get("gpus"):
-            return []
+            return [
+                "-display", "curses",
+            ]
         params = []
         pci_bus = {0: ("pci.4", "pci.5"), 1: ("pci.2", "pci.3")}
         gpu: dict
