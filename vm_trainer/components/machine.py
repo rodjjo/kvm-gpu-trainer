@@ -80,10 +80,10 @@ class Machine(object):
     def check_requirements(self) -> None:
         self.must_exists()
         self.bios_must_exists()
-        self.inputs_must_exists()
+        # self.inputs_must_exists()
         self.disk_must_exists()
         self.raw_disk_must_exists()
-        self.gpu_must_exists()
+        # self.gpu_must_exists()
 
     def bios_must_exists(self) -> None:
         if not os.path.exists(self.BIOS_PATH):
@@ -146,6 +146,8 @@ class Machine(object):
         return params
 
     def exec_parameters_gpus(self) -> List[str]:
+        if not self._settings.get("gpus"):
+            return []
         params = []
         pci_bus = {0: ("pci.4", "pci.5"), 1: ("pci.2", "pci.3")}
         gpu: dict
