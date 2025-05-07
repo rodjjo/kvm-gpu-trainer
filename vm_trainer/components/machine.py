@@ -148,7 +148,8 @@ class Machine(object):
     def exec_parameters_gpus(self) -> List[str]:
         if not self._settings.get("gpus"):
             return [
-                "-display", "curses",
+                # "-display", "-curses",
+                "-serial", "mon:stdio",
             ]
         params = []
         pci_bus = {0: ("pci.4", "pci.5"), 1: ("pci.2", "pci.3")}
@@ -169,7 +170,7 @@ class Machine(object):
              '-object', 'iothread,id=iothread0',
              "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap","aio":"threads"}' % disk_path,
              "-blockdev", '{"node-name":"libvirt-3-format","read-only":false,"driver":"qcow2","file":"libvirt-3-storage","backing":null}',
-             "-device", "ide-hd,bus=ide.0,drive=libvirt-3-format,id=sata0-0-0,bootindex=1",
+             "-device", "ide-hd,bus=ide.0,drive=libvirt-3-format,id=sata0-0-0,bootindex=2",
         ]
         for disk_number in range(1, 3):
             name = f"raw-disk{disk_number}"
@@ -206,6 +207,15 @@ class Machine(object):
         if not os.path.exists(abs_iso_path):
             raise CommandError(f"File not found: {abs_iso_path}")
 
+        if not iso_path.endswith(".iso"):
+            return [
+                '-drive', f'if=none,id=usbstick,format=raw,file={abs_iso_path}',
+                '-usb',
+                '-device', 'usb-ehci,id=ehci',
+                '-device', 'usb-storage,bus=ehci.0,drive=usbstick,bootindex=1',
+                #"-boot", 'd'
+                # '-hdb', abs_iso_path,
+            ]
         return [
             "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-2-storage","auto-read-only":true,"discard":"unmap"}' % abs_iso_path,
             "-blockdev", '{"node-name":"libvirt-2-format","read-only":true,"driver":"raw","file":"libvirt-2-storage"}',
