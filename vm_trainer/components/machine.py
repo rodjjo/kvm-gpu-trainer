@@ -48,6 +48,7 @@ class Machine(object):
             "mac-address": get_random_mac(),
             "name": name,
             "cpus": 1,
+            "tpm": False,
             "cpus-threads": 1,
             "memory": 512,
             "disk-size": 20000,
@@ -187,6 +188,18 @@ class Machine(object):
                 ]
         return params
 
+    def exec_parameters_tpm(self) -> List[str]:
+        #-tpmdev passthrough,id=tpm0,path=/dev/tpm0 \
+        #-device tpm-tis,tpmdev=tpm0 test.img
+        if self._settings.get("tpm"):
+            if not os.path.exists("/dev/tpm0"):
+                raise CommandError("TPM device not found: /dev/tpm0")
+            return [
+                "-tpmdev", "passthrough,id=tpm0,path=/dev/tpm0",
+                "-device", "tpm-tis,tpmdev=tpm0",
+            ]
+        return []
+
     def exec_parameters_scream(self) -> List[str]:
         if os.path.exists("/dev/shm/scream-ivshmem"):
             return ["-object", "memory-backend-file,id=shmmem-shmem0,mem-path=/dev/shm/scream-ivshmem,size=2097152,share=yes",
@@ -273,6 +286,7 @@ class Machine(object):
         parameters += self.exec_parameters_network()
         parameters += self.exec_parameters_iso_disk(iso_path)
         parameters += self.exec_parameters_usb_device()
+        parameters += self.exec_parameters_tpm()
 
         emulator = EmulatorTool()
         emulator.must_exists()
@@ -288,6 +302,12 @@ class Machine(object):
         if cpu_count < -1:
             raise CommandError("Invalid cpu count")
         self._settings["cpus"] = cpu_count
+
+    def set_tpm(self, tpm: bool) -> None:
+        if tpm:
+            if not os.path.exists("/dev/tpm0"):
+                raise CommandError("TPM device not found: /dev/tpm0")
+        self._settings["tpm"] = tpm
 
     def set_memory(self, memory_size: int) -> None:
         if memory_size < 256:

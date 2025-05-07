@@ -16,13 +16,15 @@ from vm_trainer.settings import Settings
 @click.option("--disk-size", required=False, type=int, help="Disk space in MB")
 @click.option("--existing-disk", required=False, type=str, help="Use an existing disk")
 @click.option("--memory", required=True, type=int, help="Amount of memory in MB")
-def machine_create(name: str, cpus: int, memory: int, existing_disk: Union[str, None], disk_size: Union[int, None]) -> None:
+@click.option("--tpm", required=False, default=True, type=bool, help="Use TPM or Not")
+def machine_create(name: str, cpus: int, memory: int, existing_disk: Union[str, None], disk_size: Union[int, None], tpm: bool) -> None:
     DependencyManager.check_all()
     machine = Machine(name)
     if machine.exists():
         raise CommandError(f"The VM {name} already exists.")
 
     machine.set_cpus(cpus)
+    machine.set_tpm(tpm)
 
     if cpus < -1:
         raise CommandError("Invalid cpu count")
