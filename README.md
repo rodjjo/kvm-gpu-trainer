@@ -111,6 +111,12 @@ After you installed the operating system
 vm-trainer machine-run --name windows
 ```
 
+## VPN
+If you have a vpn where qemu is running set the network to use the tap interface:
+```bash
+vm-trainer network-add-tap --target tun0
+```
+
 
 ## Network configuration
 
@@ -122,6 +128,30 @@ Gateway: 192.168.66.1
 DNS: 8.8.8.8  
 ```
 DHCP (automatic ip configuration) support is at the TODO list.
+
+## Network IP Linux
+Set the IP address inside the Virtual Machine
+```bash
+sudo su
+route delete default
+ifconfig enp7s0 192.168.66.2 up
+route add default gw 192.168.66.1 dev enp7s0
+killall dnsmasq
+dnsmasq --server=10.8.0.1 & 
+disown
+resolvectl dns enp7s0 10.8.0.1
+resolvectl default-route enp7s0 true
+#vi /etc/resolv-conf.systemd
+#nameserver 10.8.0.1
+#systemctl restart systemd-resolved.service
+```
+
+## Mount the shared directory you have inside the VM:
+```bash
+sudo su
+mkdir -p /mnt/data/shared/
+mount -t 9p -o trans=virtio,version=9p2000.L hostshare /mnt/data/shared/
+```
 
 ## Configuring the audio inside the virtual machine
 

@@ -3,6 +3,8 @@ from typing import Union
 
 import click
 
+from subprocess import check_call, CalledProcessError
+
 from vm_trainer.components.dependencies import DependencyManager
 from vm_trainer.components.machine import Machine
 from vm_trainer.exceptions import CommandError
@@ -140,7 +142,16 @@ def machine_run_with_iso(name: str, iso: str) -> None:
 
 @cli.command(help="Run the machine")
 @click.option("--name", required=True, help="The name of the virtual machine")
-def machine_run(name: str) -> None:
+@click.option("--shared-dir", required=False, help="The name of the virtual machine")
+def machine_run(name: str, shared_dir: Union[str, None]) -> None:
     machine = Machine(name)
     machine.must_exists()
-    machine.execute()
+    machine.execute(None, shared_dir)
+
+
+@cli.command(help="Kills the qemu process")
+def machine_kill() -> None:
+    try:
+        check_call(["sudo", "pkill", "-f", "qemu-system-x86_64"])
+    except CalledProcessError:
+        raise CommandError("Failed to kill the qemu process")

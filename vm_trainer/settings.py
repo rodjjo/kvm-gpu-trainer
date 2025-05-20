@@ -17,6 +17,16 @@ class Settings():
             os.makedirs(dirpath)
         return dirpath
 
+    def tpm_dir(self) -> Path:
+        dirpath = self.settings_dir().joinpath("tpm")
+        if not dirpath.exists():
+            os.makedirs(dirpath)
+        return dirpath
+
+    def tpm_socket_path(self) -> Path:
+        return self.tpm_dir().joinpath("swtpm-sock.sock")
+
+
     def network_interface(self) -> str:
         return self._settings.get("network-interface", "")
 

@@ -191,14 +191,17 @@ class Machine(object):
     def exec_parameters_tpm(self) -> List[str]:
         #-tpmdev passthrough,id=tpm0,path=/dev/tpm0 \
         #-device tpm-tis,tpmdev=tpm0 test.img
-        if self._settings.get("tpm"):
-            if not os.path.exists("/dev/tpm0"):
-                raise CommandError("TPM device not found: /dev/tpm0")
-            return [
-                "-tpmdev", "passthrough,id=tpm0,path=/dev/tpm0",
-                "-device", "tpm-tis,tpmdev=tpm0",
-            ]
-        return []
+        if not self._settings.get("tpm"):
+            return []
+        settings = Settings()
+        tmp_socket_path = settings.tpm_socket_path()
+        if not os.path.exists(tmp_socket_path):
+            raise CommandError(f"TPM socket not found: {tmp_socket_path}")
+        return [
+            '-chardev', f'socket,id=chrtpm,path={tmp_socket_path}',
+            '-tpmdev', 'emulator,id=tpm0,chardev=chrtpm',
+            '-device', 'tpm-tis,tpmdev=tpm0',
+        ]
 
     def exec_parameters_scream(self) -> List[str]:
         if os.path.exists("/dev/shm/scream-ivshmem"):
@@ -235,6 +238,16 @@ class Machine(object):
             "-device", "ide-cd,bus=ide.1,drive=libvirt-2-format,id=sata0-0-1",
         ]
 
+    def exec_parameters_shared_dir(self, dir_path: str = None) -> List[str]:
+        if not dir_path:
+            return []
+        if '~' in dir_path:
+            dir_path = os.path.expanduser(dir_path)
+        dir_path = os.path.abspath(dir_path)
+        return [
+            "-virtfs", f"local,id=hostshare,path={dir_path},security_model=mapped,mount_tag=hostshare",
+        ]
+
     def exec_parameters_usb_device(self) -> List[str]:
         device = self._settings["usb-device"]
         if not device or ':' not in device:
@@ -244,7 +257,7 @@ class Machine(object):
             "-usb", "-device", f"usb-host,vendorid={device[0]},productid={device[1]}",
         ]
 
-    def execute(self, iso_path: Union[str, None] = None) -> None:
+    def execute(self, iso_path: Union[str, None] = None, dir_share_path: str=None) -> None:
         self.check_requirements()
 
         settings = Settings()
@@ -287,6 +300,7 @@ class Machine(object):
         parameters += self.exec_parameters_iso_disk(iso_path)
         parameters += self.exec_parameters_usb_device()
         parameters += self.exec_parameters_tpm()
+        parameters += self.exec_parameters_shared_dir(dir_share_path)
 
         emulator = EmulatorTool()
         emulator.must_exists()
@@ -304,9 +318,6 @@ class Machine(object):
         self._settings["cpus"] = cpu_count
 
     def set_tpm(self, tpm: bool) -> None:
-        if tpm:
-            if not os.path.exists("/dev/tpm0"):
-                raise CommandError("TPM device not found: /dev/tpm0")
         self._settings["tpm"] = tpm
 
     def set_memory(self, memory_size: int) -> None:
