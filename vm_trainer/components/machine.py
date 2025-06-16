@@ -171,7 +171,7 @@ class Machine(object):
              '-object', 'iothread,id=iothread0',
              "-blockdev", '{"driver":"file","filename":"%s","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap","aio":"threads"}' % disk_path,
              "-blockdev", '{"node-name":"libvirt-3-format","read-only":false,"driver":"qcow2","file":"libvirt-3-storage","backing":null}',
-             "-device", "ide-hd,bus=ide.0,drive=libvirt-3-format,id=sata0-0-0,bootindex=2",
+             "-device", "ide-hd,bus=ide.0,drive=libvirt-3-format,id=sata0-0-0,bootindex=1",
         ]
         for disk_number in range(1, 3):
             name = f"raw-disk{disk_number}"
@@ -228,7 +228,7 @@ class Machine(object):
                 '-drive', f'if=none,id=usbstick,format=raw,file={abs_iso_path}',
                 '-usb',
                 '-device', 'usb-ehci,id=ehci',
-                '-device', 'usb-storage,bus=ehci.0,drive=usbstick,bootindex=1',
+                '-device', 'usb-storage,bus=ehci.0,drive=usbstick,bootindex=2',
                 #"-boot", 'd'
                 # '-hdb', abs_iso_path,
             ]
